@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { ZONES, PROJECTS, ORBS, ARENA, GROVE } from './data.js';
+import { ZONES, PROJECTS, ORBS, ARENA, GROVE, SECRETS } from './data.js';
 
 export const ISLAND_R = 76;
 
@@ -477,10 +477,17 @@ export function buildWorld(scene) {
     if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 4)) continue;
     if (Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 4) continue;
     if (Math.hypot(x - GROVE.x, z - GROVE.z) < GROVE.r + 2) continue;
+    if (SECRETS.some((sc) => Math.hypot(x - sc.x, z - sc.z) < sc.r + 3)) continue;
     if (nearPath(x, z) || trees.some((tr) => Math.hypot(tr.x - x, tr.z - z) < 3.6)) continue;
     trees.push({ x, z });
   }
   const greens = ['#4caf50', '#66bb6a', '#2e7d32', '#81c784'];
+  const swaying = [];
+  // Tree crowns lean gently in the breeze, each on its own phase.
+  animated.push((t) => swaying.forEach((c) => {
+    c.rotation.z = Math.sin(t * 1.1 + c.position.x * 0.3) * 0.035;
+    c.rotation.x = Math.cos(t * 0.9 + c.position.z * 0.3) * 0.03;
+  }));
   trees.forEach(({ x, z }, i) => {
     if (i % 6 === 5) {
       const rock = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + rand() * 0.8), mat('#a9a9b0')), x, 0.5, z);
@@ -492,7 +499,8 @@ export function buildWorld(scene) {
     cyl(0.25 * s, 0.35 * s, 1.6 * s, '#7a5233', x, 0.8 * s, z, 6);
     const crown = add(new THREE.Mesh(new THREE.ConeGeometry(1.7 * s, 3.6 * s, 7), mat(greens[i % 4])), x, 3.1 * s, z);
     crown.rotation.y = rand() * 3;
-    if (i % 2) add(new THREE.Mesh(new THREE.ConeGeometry(1.3 * s, 2.6 * s, 7), mat(greens[(i + 1) % 4])), x, 4.4 * s, z);
+    swaying.push(crown);
+    if (i % 2) swaying.push(add(new THREE.Mesh(new THREE.ConeGeometry(1.3 * s, 2.6 * s, 7), mat(greens[(i + 1) % 4])), x, 4.4 * s, z));
     col(x, z, 0.8 * s);
   });
 

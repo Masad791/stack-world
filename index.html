@@ -13,6 +13,7 @@
 </head>
 <body>
   <canvas id="scene" aria-label="Stack World 3D scene"></canvas>
+  <div class="art" aria-hidden="true"><div class="art-grain"></div><div class="art-paper"></div><div class="art-leak"></div><div class="art-vignette"></div></div>
   <div class="letterbox top" aria-hidden="true"></div>
   <div class="letterbox bottom" aria-hidden="true"></div>
 
@@ -41,7 +42,8 @@
     <div class="stats">
       <span class="stat"><b id="orb-count">0</b>/14 orbs</span>
       <span class="stat"><b id="zone-count">0</b>/7 districts</span>
-      <button id="badges" class="stat stat-btn" type="button"><b id="badge-count">0</b>/6 badges</button>
+      <button id="badges" class="stat stat-btn" type="button"><b id="badge-count">0</b>/<span id="badge-total">7</span> badges</button>
+      <span class="stat"><b id="secret-count">0</b>/4 secrets</span>
     </div>
   </header>
   <div class="corner">

@@ -9,7 +9,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildWorld, ISLAND_R, textCanvas } from './world.js';
 import { createNature, MOODS, MOOD_ORDER } from './nature.js';
 import { createMusic } from './music.js';
-import { ZONES, CONTACT, PORTFOLIO, HELPERS, FACTS, BADGES, ARENA, GROVE } from './data.js';
+import { createSecrets } from './secrets.js';
+import { ZONES, CONTACT, PORTFOLIO, HELPERS, FACTS, BADGES, ARENA, GROVE, SECRETS } from './data.js';
 
 // 3D labels are drawn onto canvases once, so wait (briefly) for the brand font first.
 await Promise.race([document.fonts?.load('600 54px "Space Grotesk"'), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
@@ -66,6 +67,7 @@ if (!touch) {
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 }
+const secrets = createSecrets({ scene, addCollider: world.addCollider });
 const nature = createNature({ scene, hemi, sun, renderer, bloom, sea: world.sea, islandTop: world.islandTop, islandR: ISLAND_R, addCollider: world.addCollider });
 const bot = new Bot();
 bot.group.position.set(0, 0, 9);
@@ -147,6 +149,7 @@ const taken = new Set(store.get('orbs', []));
 const visited = new Set(store.get('zones', []));
 const talked = new Set(store.get('talked', []));
 const badges = new Set(store.get('badges', []));
+const found = new Set(store.get('secrets', []));
 world.orbs.forEach((o) => {
   if (taken.has(o.name)) {
     o.taken = true;
@@ -163,6 +166,8 @@ const updateStats = (changed) => {
   $('orb-count').textContent = taken.size;
   $('zone-count').textContent = visited.size;
   $('badge-count').textContent = badges.size;
+  $('badge-total').textContent = BADGES.length;
+  $('secret-count').textContent = found.size;
   if (changed) pop(changed);
 };
 updateStats();
@@ -431,7 +436,29 @@ function step(dt) {
 }
 
 // ---------- Discovery: districts, billboards, orbs ----------
+let artStyle = null;
 function discover() {
+  // Secret places: discovery, plus each one's own art style while you're inside.
+  const secret = secrets.at(pos);
+  const style = secret ? secret.style : null;
+  if (style !== artStyle) {
+    if (artStyle) document.body.classList.remove(`style-${artStyle}`);
+    if (style) document.body.classList.add(`style-${style}`);
+    artStyle = style;
+  }
+  if (secret && !found.has(secret.id)) {
+    found.add(secret.id);
+    store.set('secrets', [...found]);
+    updateStats('secret-count');
+    toast(`Secret found: ${secret.name}`);
+    blip(392, 1175, 0.6, 'sine', 0.12);
+    if (found.size === SECRETS.length) award('wanderer');
+  }
+  if (secret && !lock) {
+    showPanel(`secret:${secret.id}`, { kicker: 'Secret place', title: secret.name, text: secret.line });
+    return collectOrbs();
+  }
+
   const zone = ZONES.find((z) => Math.hypot(pos.x - z.x, pos.z - z.z) < z.r);
   // Fade the floating name of the district you're standing in, so it never hides Byte.
   ZONES.forEach((z) => {
@@ -474,6 +501,10 @@ function discover() {
     }
   }
 
+  collectOrbs();
+}
+
+function collectOrbs() {
   for (const o of world.orbs) {
     if (o.taken || Math.hypot(pos.x - o.x, pos.z - o.z) > 1.9) continue;
     o.taken = true;
@@ -586,6 +617,7 @@ function drawMinimap() {
   ZONES.forEach((z) => dot(z.x, z.z, z.r * k, visited.has(z.id) ? z.color : 'rgba(27,27,31,0.25)'));
   dot(ARENA.x, ARENA.z, ARENA.r * k, 'rgba(229,57,53,0.35)');
   dot(GROVE.x, GROVE.z, GROVE.r * k, 'rgba(255,143,177,0.6)');
+  SECRETS.forEach((sc) => found.has(sc.id) && dot(sc.x, sc.z, sc.r * k, 'rgba(124,77,255,0.45)')); // secrets appear once found
   world.orbs.forEach((o) => !o.taken && dot(o.x, o.z, 4, '#ffffff'));
   helpers.forEach((n) => dot(n.pos.x, n.pos.z, 5, `#${n.def.shell.toString(16).padStart(6, '0')}`));
   const pointer = games.pointer;
@@ -747,6 +779,7 @@ function tick() {
   }
   updateArrow(t);
   nature.update(dt, t, pos);
+  secrets.update(dt, t, pos, speed01, nature.wind);
   updateMusic(dt, t);
   updateParticles(dt, speed01);
   if (marker.visible) marker.scale.setScalar(THREE.MathUtils.lerp(marker.scale.x, 1, dt * 8));
@@ -763,7 +796,7 @@ $('badges').onclick = () =>
   openLocked(`badges:${Date.now()}`, {
     kicker: `${badges.size} of ${BADGES.length} unlocked`,
     title: 'Badges',
-    text: BADGES.map(([id, name, how]) => `${badges.has(id) ? '[x]' : '[ ]'} ${name}: ${how}`).join('\n'),
+    text: BADGES.map(([id, name, how]) => `${badges.has(id) ? '[x]' : '[ ]'} ${name}: ${how}`).join('\n') + `\n\nSecret places found: ${found.size} of ${SECRETS.length}`,
     actions: [{ label: 'Close', run: closePanel }],
   });
 

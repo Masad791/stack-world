@@ -99,6 +99,9 @@ export const FACTS = [
   'Singularity Engine pushes 112,000 particles around two black holes.',
   'This island has zero 3D model files. Everything is built in code.',
   'The Video Upscaler resumes long jobs in 60 second segments.',
+  'Rumour: four secret places are hidden around the edge of the island.',
+  'I heard the trees in the far west whisper at night.',
+  'Somewhere south, koi have been circling a pond for ages.',
 ];
 
 // ---------- Minigames ----------
@@ -128,7 +131,20 @@ export const BADGES = [
   ['speedrunner', 'Speedrunner', `Finish the deploy race under ${RACE_PAR} s`],
   ['quiz', 'Quiz Master', 'Score 5 of 5 in the Stack Quiz'],
   ['social', 'Social Bot', 'Talk to all 5 helper bots'],
+  ['wanderer', 'Wanderer', 'Find all 4 secret places'],
 ];
 
 // Music Grove: a quiet clearing east of the plaza where the waltz plays. Not a district.
 export const GROVE = { x: 46, z: 0, r: 10, name: 'Music Grove' };
+
+// Secret places: not on the minimap until found. Each one has its own look (see .style-* in style.css).
+export const SECRETS = [
+  { id: 'spirit', name: 'Spirit Grove', x: -56, z: 0, r: 9, style: 'spirit',
+    line: 'Tiny forest spirits live here. Walk slowly and they peek out.' },
+  { id: 'koi', name: 'Koi Pond', x: -30, z: 56, r: 8, style: 'koi',
+    line: 'A quiet pond. The koi have been circling it since the island was built.' },
+  { id: 'windmill', name: 'Windmill Hill', x: 42, z: -50, r: 8, style: 'windmill',
+    line: 'Sunflowers, butterflies and an old windmill that never stops turning.' },
+  { id: 'shrine', name: 'Wind Shrine', x: -45, z: -48, r: 6.5, style: 'shrine',
+    line: 'Ring the chimes and look up: an island floats in the sky above the sea.' },
+];
