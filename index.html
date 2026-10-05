@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Stack World // Muhammad Asad</title>
+  <meta name="description" content="A tiny 3D game inside Muhammad Asad's portfolio. Drive Byte the robot around an island built from his stack and projects." />
+  <meta name="theme-color" content="#a8dcff" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="scene" aria-label="Stack World 3D scene"></canvas>
+
+  <!-- Intro -->
+  <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title">
+    <div class="intro-card">
+      <p class="eyebrow">A tiny game inside my portfolio</p>
+      <h1 id="intro-title">Stack <em>World</em></h1>
+      <p class="lead">Meet Byte. Drive it around an island built from my stack: visit every district, read about my projects, and collect all 14 stack orbs.</p>
+      <ul class="keys">
+        <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to move</li>
+        <li><kbd>Shift</kbd> run &nbsp; <kbd>Space</kbd> jump</li>
+        <li>Click or tap the ground to walk there</li>
+        <li>Scroll or <kbd>+</kbd><kbd>-</kbd> to zoom</li>
+      </ul>
+      <button id="start" class="btn primary" type="button" disabled>Loading the island...</button>
+      <a class="btn ghost" href="https://m-asad-portfolio.netlify.app" rel="noopener">Back to the portfolio</a>
+    </div>
+  </div>
+
+  <!-- HUD -->
+  <header class="hud">
+    <a class="brand" href="https://m-asad-portfolio.netlify.app" rel="noopener">MAD <span>// Stack World</span></a>
+    <div class="stats">
+      <span class="stat"><b id="orb-count">0</b>/14 orbs</span>
+      <span class="stat"><b id="zone-count">0</b>/7 districts</span>
+    </div>
+  </header>
+  <div class="corner">
+    <canvas id="minimap" width="300" height="300" aria-label="Minimap"></canvas>
+    <div class="corner-buttons">
+      <button id="sound" class="icon-btn" type="button" aria-pressed="true" title="Sound">Sound on</button>
+      <button id="zoom-in" class="icon-btn" type="button" title="Zoom in">+</button>
+      <button id="zoom-out" class="icon-btn" type="button" title="Zoom out">-</button>
+    </div>
+  </div>
+  <p id="hint" class="hint">WASD to move // Shift to run // Space to jump // Click the ground to walk</p>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- District / project panel -->
+  <aside id="panel" class="panel" aria-live="polite">
+    <p id="panel-kicker" class="eyebrow"></p>
+    <h2 id="panel-title"></h2>
+    <img id="panel-img" alt="" />
+    <p id="panel-text"></p>
+    <div id="panel-tags" class="tags"></div>
+    <div id="panel-links" class="links"></div>
+  </aside>
+
+  <!-- Finale -->
+  <div id="finale" class="intro hidden" role="dialog" aria-modal="true" aria-labelledby="finale-title">
+    <div class="intro-card">
+      <p class="eyebrow">14 of 14 collected</p>
+      <h1 id="finale-title">You found my <em>whole stack</em></h1>
+      <p class="lead">Thanks for playing. If you want this kind of care in your product, let's talk.</p>
+      <div id="finale-links" class="links"></div>
+      <button id="keep-playing" class="btn ghost" type="button">Keep exploring</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
