@@ -73,3 +73,62 @@ export const ORBS = [
   ['MySQL', 'mysql', -22, 16], ['Postgres', 'postgresql', -43, 22], ['MongoDB', 'mongodb', -29, 38], ['Redis', 'redis', -42, 36],
   ['Python', 'python', 22, 16], ['Electron', 'electron', 43, 21], ['Node.js', 'nodejs', 44, 35], ['Docker', 'docker', 26, 39],
 ];
+
+// ---------- Helper bots ----------
+// role decides what talking to them does (see main.js). home = where they hang out.
+export const HELPERS = [
+  { id: 'scout', name: 'Scout', role: 'guide', home: [3.5, 6.5], wander: 4, shell: 0xffd166, accent: 0x1b1b1f,
+    greet: 'Hi, I\'m Scout! I know every corner of this island. Want me to walk you somewhere?' },
+  { id: 'bugsy', name: 'Bugsy', role: 'bugs', home: [-12, -28], wander: 2.5, shell: 0x9be15d, accent: 0xe53935,
+    greet: 'Bugs escaped into my arena! Squash as many as you can in 30 seconds. Fifteen earns the Debugger badge.' },
+  { id: 'quizzy', name: 'Quizzy', role: 'quiz', home: [30, -17], wander: 2.5, shell: 0xc792ea, accent: 0xffffff,
+    greet: 'Think you know Asad\'s work? Five quick questions about his real projects. Get all five for Quiz Master.' },
+  { id: 'dash', name: 'Dash', role: 'race', home: [-24, 22], wander: 2.5, shell: 0x61dafb, accent: 0xff4a1c,
+    greet: 'Ship it! Run through 7 deploy rings in order. Finish under 25 seconds for the Speedrunner badge.' },
+  { id: 'hiro', name: 'Hiro', role: 'hire', home: [6, -46], wander: 2, shell: 0x2b2b31, accent: 0xff4a1c,
+    greet: 'Asad replies in about two hours and is open to freelance and full-time work. Want his details?' },
+];
+
+// Small drones roam the whole island and share these when you get close.
+export const FACTS = [
+  'The Voice Changer\'s AI engine idles at about 0% CPU while you are silent.',
+  'CineBook holds a seat for exactly 420 seconds in Redis.',
+  'BookmarkPanels asks Chrome for only 4 permissions.',
+  'DevPulse merges 54 news sources and needs no database.',
+  'Every image uploaded to the Finance System is re-encoded to WebP.',
+  'Singularity Engine pushes 112,000 particles around two black holes.',
+  'This island has zero 3D model files. Everything is built in code.',
+  'The Video Upscaler resumes long jobs in 60 second segments.',
+];
+
+// ---------- Minigames ----------
+export const ARENA = { x: -12, z: -38, r: 9 };
+
+// Deploy race: rings sit on the paths, so the route stays clear of buildings.
+export const RINGS = [[-17, 14], [-17, -13], [0, -26], [17, -13], [17, 14], [0, 27], [0, 10]];
+export const RACE_PAR = 25;
+
+// Quiz answers come straight from the projects' case studies. The first option is correct.
+export const QUIZ = [
+  ['Where does CineBook keep its temporary seat holds?', 'Redis', 'MySQL', 'MongoDB'],
+  ['What runs the Voice Changer\'s AI voices?', 'RVC models on ONNX Runtime', 'A cloud API', 'WebGPU in the browser'],
+  ['Which shortcut opens BookmarkPanels?', 'Alt+B', 'Ctrl+K', 'Shift+P'],
+  ['The Finance System converts every upload to...', 'WebP', 'PNG', 'GIF'],
+  ['How many news sources does DevPulse merge?', '54', '12', '200'],
+  ['How long does a CineBook seat hold last?', '7 minutes', '30 seconds', '1 hour'],
+  ['Which shader powers the Upscaler\'s Balanced mode?', 'FSRCNNX', 'Bloom', 'SSAO'],
+  ['How many black holes are in Singularity Engine?', '2', '1', '5'],
+  ['How many Laravel modules does the Finance System have?', '5', '1', '12'],
+];
+
+export const BADGES = [
+  ['explorer', 'Explorer', 'Visit all 7 districts'],
+  ['collector', 'Collector', 'Collect all 14 stack orbs'],
+  ['debugger', 'Debugger', 'Squash 15 bugs in one round'],
+  ['speedrunner', 'Speedrunner', `Finish the deploy race under ${RACE_PAR} s`],
+  ['quiz', 'Quiz Master', 'Score 5 of 5 in the Stack Quiz'],
+  ['social', 'Social Bot', 'Talk to all 5 helper bots'],
+];
+
+// Music Grove: a quiet clearing east of the plaza where the waltz plays. Not a district.
+export const GROVE = { x: 46, z: 0, r: 10, name: 'Music Grove' };

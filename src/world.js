@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { ZONES, PROJECTS, ORBS } from './data.js';
+import { ZONES, PROJECTS, ORBS, ARENA, GROVE } from './data.js';
 
 export const ISLAND_R = 76;
 
@@ -95,21 +95,22 @@ export function buildWorld(scene) {
   };
 
   // ---------- Island, beach and sea ----------
-  add(new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R - 3, 4, 72), mat('#8fcf6a')), 0, -2, 0, { cast: false, receive: true });
+  // Own material (not the shared cache) because the mood system recolors the grass.
+  const islandTop = add(new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R - 3, 4, 72), new THREE.MeshStandardMaterial({ color: '#8fcf6a', roughness: 0.85, flatShading: true })), 0, -2, 0, { cast: false, receive: true });
   add(new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R + 4, ISLAND_R + 2, 3.6, 72), mat('#f2dfae')), 0, -2.25, 0, { cast: false, receive: true });
   const sea = add(new THREE.Mesh(new THREE.CircleGeometry(400, 48), new THREE.MeshStandardMaterial({ color: '#5cc8f0', roughness: 0.3, metalness: 0.1 })), 0, -1.1, 0, { cast: false });
   sea.rotation.x = -Math.PI / 2;
   animated.push((t) => (sea.position.y = -1.1 + Math.sin(t * 0.8) * 0.08));
 
-  // Paths from the plaza to every district.
-  ZONES.filter((zn) => zn.id !== 'plaza').forEach((zn) => {
+  // Paths from the plaza to every district (and the Music Grove).
+  [...ZONES.filter((zn) => zn.id !== 'plaza'), GROVE].forEach((zn) => {
     const len = Math.hypot(zn.x, zn.z);
     const path = add(new THREE.Mesh(new THREE.PlaneGeometry(5, len), mat('#ead7a4')), zn.x / 2, 0.02, zn.z / 2, { cast: false, receive: true });
     path.rotation.x = -Math.PI / 2;
     path.rotation.z = Math.atan2(zn.x, zn.z);
   });
   const nearPath = (x, z) =>
-    ZONES.some((zn) => {
+    [...ZONES, GROVE].some((zn) => {
       const len2 = zn.x * zn.x + zn.z * zn.z || 1;
       const t = Math.max(0, Math.min(1, (x * zn.x + z * zn.z) / len2));
       return Math.hypot(x - zn.x * t, z - zn.z * t) < 4.5;
@@ -395,6 +396,77 @@ export function buildWorld(scene) {
     col(cx + 3.5, cz + 4.5, 0.7);
   }
 
+  // ---------- Bug arena: a sandy clearing with a fence of posts ----------
+  cyl(ARENA.r + 0.6, ARENA.r + 0.6, 0.06, '#e6cf9c', ARENA.x, 0.03, ARENA.z, 48, { cast: false, receive: true });
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    if (Math.abs(Math.sin(a) - 1) < 0.25) continue; // gate on the +z side, where Bugsy stands
+    const fx = ARENA.x + Math.cos(a) * (ARENA.r + 1);
+    const fz = ARENA.z + Math.sin(a) * (ARENA.r + 1);
+    cyl(0.15, 0.15, 1.2, '#8a6a4a', fx, 0.6, fz, 6);
+    col(fx, fz, 0.35);
+  }
+  label('Bug Arena', ARENA.x, 7, ARENA.z, '#e53935');
+
+  // ---------- Music Grove: a giant cherry tree, a music box, stones and paper lanterns ----------
+  {
+    const { x: gx, z: gz } = GROVE;
+    add(new THREE.Mesh(new THREE.CylinderGeometry(GROVE.r - 1, GROVE.r + 0.5, 0.5, 40), mat('#a6d98a')), gx, 0.0, gz, { cast: false, receive: true });
+    const trunk = cyl(0.9, 1.5, 6, '#6d4b35', gx, 3, gz, 10);
+    trunk.rotation.z = 0.08;
+    [[-1, 0.5], [1, -0.4], [0.3, 1]].forEach(([dx, dz]) => {
+      const branch = cyl(0.3, 0.55, 3.4, '#6d4b35', gx + dx * 1.3, 6.4, gz + dz * 1.1, 8);
+      branch.rotation.set(dz * 0.6, 0, -dx * 0.6);
+    });
+    const pinks = ['#ffb7cf', '#ff9ec0', '#ffd1e0', '#ffc4d8'];
+    const blossoms = [];
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const r = 1.5 + (i % 3) * 1.4;
+      const puff = add(new THREE.Mesh(new THREE.IcosahedronGeometry(1.8 + (i % 4) * 0.4, 1), mat(pinks[i % 4])), gx + Math.cos(a) * r, 8 + Math.sin(i * 1.7) * 1.2 + (i % 2), gz + Math.sin(a) * r);
+      blossoms.push(puff);
+    }
+    animated.push((t) => blossoms.forEach((b, i) => (b.rotation.y = Math.sin(t * 0.5 + i) * 0.08)));
+    col(gx, gz, 1.8);
+
+    // Open music box with a turning crank.
+    const bx = gx - 4.5;
+    const bz = gz + 4;
+    rbox(2, 1.1, 1.4, '#c08552', bx, 0.85, bz);
+    const lid = rbox(2, 0.18, 1.4, '#a8693c', bx, 1.75, bz - 0.55);
+    lid.rotation.x = -1.1;
+    box(1.6, 0.05, 1, '#f3e3c3', bx, 1.42, bz);
+    const crank = new THREE.Group();
+    crank.position.set(bx + 1.1, 1, bz);
+    crank.add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5), mat('#d4a73a')));
+    crank.children[0].rotation.z = Math.PI / 2;
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.5, 0.08), mat('#d4a73a'));
+    handle.position.set(0.25, 0.2, 0);
+    crank.add(handle);
+    scene.add(crank);
+    animated.push((t) => (crank.rotation.x = t * 2));
+    col(bx, bz, 1.3);
+
+    // Ring of sitting stones.
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + 0.3;
+      if (Math.abs(Math.atan2(Math.sin(a - Math.PI), Math.cos(a - Math.PI))) < 0.45) continue; // opening toward the plaza
+      const sx = gx + Math.cos(a) * 7.2;
+      const sz = gz + Math.sin(a) * 7.2;
+      const stone = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.75), mat('#bdb6aa')), sx, 0.4, sz);
+      stone.scale.y = 0.6;
+      col(sx, sz, 0.8);
+    }
+    // Paper lanterns hanging from the branches.
+    [[-2.5, 1.5], [2.2, -1.8], [0.5, 2.8]].forEach(([dx, dz], i) => {
+      const lantern = ball(0.45, '#ff8fb1', gx + dx, 5.2, gz + dz, { cast: false });
+      lantern.material = mat('#ffc2d4', { emissive: '#ff6f9b', emissiveIntensity: 1.2 });
+      lantern.scale.y = 1.25;
+      animated.push((t) => (lantern.position.y = 5.2 + Math.sin(t * 1.2 + i) * 0.12));
+    });
+    label('Music Grove', gx, 13, gz, '#d6457a');
+  }
+
   // ---------- Trees and rocks, kept off districts and paths ----------
   const trees = [];
   for (let tries = 0; trees.length < 85 && tries < 3000; tries++) {
@@ -403,6 +475,8 @@ export function buildWorld(scene) {
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 4)) continue;
+    if (Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 4) continue;
+    if (Math.hypot(x - GROVE.x, z - GROVE.z) < GROVE.r + 2) continue;
     if (nearPath(x, z) || trees.some((tr) => Math.hypot(tr.x - x, tr.z - z) < 3.6)) continue;
     trees.push({ x, z });
   }
@@ -459,10 +533,26 @@ export function buildWorld(scene) {
     o.group.position.y = 2 + Math.sin(t * 2 + o.seed) * 0.3;
   }));
 
+  // A random open spot on the island, for roaming drones.
+  const randomSpot = () => {
+    for (let k = 0; k < 40; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 8 + Math.random() * (ISLAND_R - 14);
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      if (!blocked(x, z, 2)) return { x, z };
+    }
+    return { x: 0, z: 9 };
+  };
+
   return {
     colliders,
     billboards,
     orbs,
+    randomSpot,
+    sea,
+    islandTop,
+    addCollider: col,
     update: (t, dt) => animated.forEach((fn) => fn(t, dt)),
   };
 }

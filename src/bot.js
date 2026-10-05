@@ -3,17 +3,17 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 
 const ACCENT = 0xff4a1c;
 
-// Byte: a small rounded robot built from primitives, so the game ships with no model files.
+// Byte (and every helper bot): a small rounded robot built from primitives, so the game ships with no model files.
 export class Bot {
-  constructor() {
+  constructor({ shell = 0xf4f2ee, accent: accentColor = ACCENT, visorColor = 0x1b1b1f } = {}) {
     this.group = new THREE.Group(); // position + heading
     this.body = new THREE.Group(); // bob, lean and squash
     this.group.add(this.body);
 
-    const white = new THREE.MeshStandardMaterial({ color: 0xf4f2ee, roughness: 0.45 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1b1b1f, roughness: 0.3 });
-    const accent = new THREE.MeshStandardMaterial({ color: ACCENT, roughness: 0.5 });
-    const glow = new THREE.MeshStandardMaterial({ color: ACCENT, emissive: ACCENT, emissiveIntensity: 2.2 });
+    const white = new THREE.MeshStandardMaterial({ color: shell, roughness: 0.45 });
+    const dark = new THREE.MeshStandardMaterial({ color: visorColor, roughness: 0.3 });
+    const accent = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5 });
+    const glow = new THREE.MeshStandardMaterial({ color: accentColor, emissive: accentColor, emissiveIntensity: 2.2 });
     const shadow = (m) => ((m.castShadow = true), m);
 
     const torso = shadow(new THREE.Mesh(new RoundedBoxGeometry(1.1, 0.9, 0.8, 4, 0.22), white));

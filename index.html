@@ -13,17 +13,21 @@
 </head>
 <body>
   <canvas id="scene" aria-label="Stack World 3D scene"></canvas>
+  <div class="letterbox top" aria-hidden="true"></div>
+  <div class="letterbox bottom" aria-hidden="true"></div>
 
   <!-- Intro -->
   <div id="intro" class="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title">
     <div class="intro-card">
       <p class="eyebrow">A tiny game inside my portfolio</p>
       <h1 id="intro-title">Stack <em>World</em></h1>
-      <p class="lead">Meet Byte. Drive it around an island built from my stack: visit every district, read about my projects, and collect all 14 stack orbs.</p>
+      <p class="lead">Meet Byte. Drive it around an island built from my stack: visit every district, read about my projects, collect all 14 stack orbs, and play the helper bots' minigames.</p>
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to move</li>
         <li><kbd>Shift</kbd> run &nbsp; <kbd>Space</kbd> jump</li>
         <li>Click or tap the ground to walk there</li>
+        <li><kbd>E</kbd> talk to helper bots and play their minigames</li>
+        <li><kbd>M</kbd> change the mood &nbsp; <kbd>V</kbd> change the camera</li>
         <li>Scroll or <kbd>+</kbd><kbd>-</kbd> to zoom</li>
       </ul>
       <button id="start" class="btn primary" type="button" disabled>Loading the island...</button>
@@ -37,18 +41,30 @@
     <div class="stats">
       <span class="stat"><b id="orb-count">0</b>/14 orbs</span>
       <span class="stat"><b id="zone-count">0</b>/7 districts</span>
+      <button id="badges" class="stat stat-btn" type="button"><b id="badge-count">0</b>/6 badges</button>
     </div>
   </header>
   <div class="corner">
     <canvas id="minimap" width="300" height="300" aria-label="Minimap"></canvas>
+    <div class="corner-buttons mood-buttons">
+      <button id="mood" class="icon-btn" type="button" title="Change the mood (M)">Morning</button>
+      <button id="view" class="icon-btn" type="button" title="Change the camera (V)">Follow view</button>
+      <button id="music" class="icon-btn" type="button" aria-pressed="false" title="Play music everywhere">Music</button>
+    </div>
     <div class="corner-buttons">
+      <button id="compass" class="icon-btn" type="button" aria-pressed="false" title="Point to the nearest orb">Compass</button>
       <button id="sound" class="icon-btn" type="button" aria-pressed="true" title="Sound">Sound on</button>
       <button id="zoom-in" class="icon-btn" type="button" title="Zoom in">+</button>
       <button id="zoom-out" class="icon-btn" type="button" title="Zoom out">-</button>
     </div>
   </div>
-  <p id="hint" class="hint">WASD to move // Shift to run // Space to jump // Click the ground to walk</p>
+  <p id="hint" class="hint">WASD to move // E to talk // M mood // V camera // Click the ground to walk</p>
   <div id="toast" class="toast" aria-live="polite"></div>
+  <button id="prompt" class="prompt" type="button"></button>
+  <div id="gamebar" class="gamebar" aria-live="polite">
+    <span id="gamebar-text"></span>
+    <button id="gamebar-quit" type="button">Quit</button>
+  </div>
 
   <!-- District / project panel -->
   <aside id="panel" class="panel" aria-live="polite">
