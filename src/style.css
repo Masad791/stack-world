@@ -4,6 +4,12 @@
   --paper: #fffaf2;
   --accent: #ff4a1c;
   --line: rgba(27, 27, 31, 0.12);
+  /* Keep the interface clear of notches, rounded corners and the home indicator. */
+  --edge: 16px;
+  --top: calc(var(--edge) + env(safe-area-inset-top, 0px));
+  --left: calc(var(--edge) + env(safe-area-inset-left, 0px));
+  --right: calc(var(--edge) + env(safe-area-inset-right, 0px));
+  --bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
 }
 * {
   box-sizing: border-box;
@@ -96,9 +102,9 @@ kbd {
 .intro {
   position: fixed;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
+  display: flex;
+  overflow-y: auto;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
   background: rgba(168, 220, 255, 0.35);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -110,6 +116,7 @@ kbd {
   pointer-events: none;
 }
 .intro-card {
+  margin: auto; /* centred when it fits, scrollable when it doesn't */
   width: min(520px, 100%);
   padding: 34px;
   border-radius: 28px;
@@ -144,10 +151,11 @@ kbd {
 /* ---------- HUD ---------- */
 .hud {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: var(--top);
+  left: var(--left);
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
   z-index: 10;
   pointer-events: none;
@@ -194,8 +202,8 @@ kbd {
 }
 .corner {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: var(--top);
+  right: var(--right);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -407,7 +415,8 @@ kbd {
 .hint {
   position: fixed;
   left: 50%;
-  bottom: 18px;
+  bottom: var(--bottom);
+  max-width: calc(100vw - 32px);
   transform: translateX(-50%);
   padding: 8px 16px;
   border-radius: 999px;
@@ -453,7 +462,11 @@ kbd {
 .prompt {
   position: fixed;
   left: 50%;
-  bottom: 64px;
+  bottom: calc(var(--bottom) + 48px);
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transform: translate(-50%, 12px);
   padding: 12px 22px;
   border-radius: 999px;
@@ -476,7 +489,8 @@ kbd {
 .gamebar {
   position: fixed;
   left: 50%;
-  top: 16px;
+  top: var(--top);
+  max-width: calc(100vw - 32px);
   transform: translate(-50%, -80px);
   display: flex;
   align-items: center;
@@ -555,16 +569,18 @@ kbd {
   pointer-events: none !important;
 }
 .cinematic .corner {
-  top: calc(9vh + 12px);
+  top: calc(9vh + var(--top));
 }
 
 /* ---------- Panel ---------- */
 .panel {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: var(--right);
+  bottom: var(--bottom);
   width: min(380px, calc(100vw - 32px));
-  max-height: calc(100vh - 230px);
+  /* Never taller than the space under the map and the two button rows (about 242px). */
+  max-height: calc(100vh - 290px);
+  max-height: calc(100dvh - var(--top) - var(--bottom) - 256px);
   overflow: auto;
   padding: 22px;
   border-radius: 24px;
@@ -851,9 +867,22 @@ kbd {
 }
 @media (max-width: 1000px) {
   /* Narrow screens: icon-only buttons in two columns under the map, clear of the stats on the left. */
+  :root {
+    --edge: 12px;
+  }
+  .gamebar {
+    top: auto;
+    bottom: calc(var(--bottom) + 52px);
+    transform: translate(-50%, 200px);
+  }
+  /* The corner is a tall column here, so the panel moves to the free bottom-left, under the stats. */
+  .panel {
+    left: var(--left);
+    right: auto;
+    max-height: calc(100vh - 200px);
+    max-height: calc(100dvh - var(--top) - var(--bottom) - 180px);
+  }
   .corner {
-    top: 12px;
-    right: 12px;
     display: grid;
     grid-template-columns: auto auto;
     grid-auto-flow: column;
@@ -885,18 +914,14 @@ kbd {
 }
 @media (max-width: 700px) {
   .gamebar {
-    top: auto;
-    bottom: 64px;
-    transform: translate(-50%, 140px);
-    max-width: calc(100vw - 24px);
     font-size: 11px;
   }
   .prompt {
-    bottom: 70px;
+    bottom: calc(var(--bottom) + 64px);
   }
   .toast {
     top: auto;
-    bottom: 130px;
+    bottom: calc(var(--bottom) + 128px);
   }
   #minimap {
     width: 104px;
@@ -913,11 +938,12 @@ kbd {
     border-radius: 16px;
   }
   .panel {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
+    left: var(--left);
+    right: var(--right);
+    bottom: var(--bottom);
     width: auto;
     max-height: 52vh;
+    max-height: max(200px, min(52dvh, calc(100dvh - 365px)));
     padding: 18px;
   }
   .panel img {
@@ -925,6 +951,105 @@ kbd {
   }
   .intro-card {
     padding: 24px;
+  }
+}
+@media (max-width: 700px) and (max-height: 620px) and (orientation: portrait) {
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  .corner-buttons {
+    gap: 5px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --edge: 10px;
+  }
+  .corner {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    column-gap: 8px;
+    row-gap: 6px;
+    justify-items: end;
+    align-items: start;
+  }
+  #minimap {
+    width: 86px;
+    height: 86px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .corner-buttons {
+    flex-direction: row;
+    grid-column: 1;
+  }
+  .mood-buttons {
+    grid-row: 1;
+  }
+  .corner-buttons:not(.mood-buttons) {
+    grid-row: 2;
+  }
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+  .icon-btn .lbl {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .brand {
+    font-size: 15px;
+    padding: 7px 13px;
+  }
+  .stats {
+    gap: 6px;
+    max-width: calc(100vw - 360px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  }
+  .stat {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .hint {
+    display: none;
+  }
+  .prompt {
+    bottom: var(--bottom);
+  }
+  .toast {
+    top: auto;
+    bottom: calc(var(--bottom) + 60px);
+  }
+  .gamebar {
+    top: auto;
+    bottom: var(--bottom);
+    transform: translate(-50%, 200px);
+  }
+  .panel {
+    left: var(--left);
+    right: auto;
+    top: auto;
+    bottom: var(--bottom);
+    width: min(380px, 52vw);
+    max-height: calc(100vh - 118px);
+    max-height: calc(100dvh - 118px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  }
+  .gb {
+    max-height: 94vh;
+    max-height: 94dvh;
+    padding: 18px;
+  }
+  .cinematic .corner {
+    top: var(--top);
   }
 }
 @media (prefers-reduced-motion: reduce) {
