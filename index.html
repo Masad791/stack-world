@@ -28,7 +28,8 @@
         <li><kbd>Shift</kbd> run &nbsp; <kbd>Space</kbd> jump</li>
         <li>Click or tap the ground to walk there</li>
         <li><kbd>E</kbd> talk to helper bots and play their minigames</li>
-        <li><kbd>M</kbd> change the mood &nbsp; <kbd>V</kbd> change the camera</li>
+        <li><kbd>M</kbd> mood &nbsp; <kbd>R</kbd> weather &nbsp; <kbd>V</kbd> camera</li>
+        <li>Sign the guestbook by the plaza</li>
         <li>Scroll or <kbd>+</kbd><kbd>-</kbd> to zoom</li>
       </ul>
       <button id="start" class="btn primary" type="button" disabled>Loading the island...</button>
@@ -50,14 +51,23 @@
     <canvas id="minimap" width="300" height="300" aria-label="Minimap"></canvas>
     <!-- Icons are inline SVG (no requests, themable with currentColor); each animates on hover in style.css. -->
     <div class="corner-buttons mood-buttons">
-      <button id="mood" class="icon-btn" type="button" data-mood="morning" title="Change the mood (M)">
+      <button id="mood" class="icon-btn" type="button" data-mood="cycle" title="Change the mood (M)">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+          <g class="i-cycle"><circle cx="12" cy="12" r="9.5" /><path d="M12 12V7" class="hand-h" /><g class="spin-m"><path d="M12 12h4.5" class="hand-m" /></g><circle cx="12" cy="12" r="1.1" class="fill" /></g>
           <g class="i-morning"><circle cx="12" cy="12" r="4" /><g class="rays"><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></g></g>
           <g class="i-golden"><path d="M3 18h18M7 18a5 5 0 0 1 10 0" class="sunset" /><path d="M12 7v3M5.6 11.6 7 13M18.4 11.6 17 13" class="rays" /><path d="M6 21h12" /></g>
           <g class="i-night"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" class="moon" /><path d="M18 3v3M16.5 4.5h3" class="star" /></g>
           <g class="i-sakura"><g class="petals"><ellipse cx="12" cy="6.5" rx="2.6" ry="3.6" /><ellipse cx="12" cy="6.5" rx="2.6" ry="3.6" transform="rotate(72 12 12)" /><ellipse cx="12" cy="6.5" rx="2.6" ry="3.6" transform="rotate(144 12 12)" /><ellipse cx="12" cy="6.5" rx="2.6" ry="3.6" transform="rotate(216 12 12)" /><ellipse cx="12" cy="6.5" rx="2.6" ry="3.6" transform="rotate(288 12 12)" /></g><circle cx="12" cy="12" r="1.4" class="fill" /></g>
         </svg>
-        <span class="lbl">Morning</span>
+        <span class="lbl">Day 08:30</span>
+      </button>
+      <button id="weather" class="icon-btn" type="button" data-wx="clear" title="Change the weather (R)">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+          <g class="i-clear"><path d="M12 2v2M4.9 4.9l1.4 1.4M20 12h2M19.1 4.9l-1.4 1.4" class="rays" /><path d="M15.9 12.6a4 4 0 0 0-5.9-4.1" /><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6z" class="cloud" /></g>
+          <g class="i-rain"><path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2" class="cloud" /><path d="M16 14v6" class="drop d1" /><path d="M8 14v6" class="drop d2" /><path d="M12 16v6" class="drop d3" /></g>
+          <g class="i-snow"><g class="flake"><path d="M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4" /></g></g>
+        </svg>
+        <span class="lbl">Auto weather</span>
       </button>
       <button id="view" class="icon-btn" type="button" title="Change the camera (V)">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="13" height="10" rx="2.5" /><path d="m15 10.5 6-3.5v10l-6-3.5" class="lens" /><circle cx="6.5" cy="11" r="1.2" class="rec fill" /></svg>
@@ -77,6 +87,10 @@
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z" /><path d="M15.5 8.5a5 5 0 0 1 0 7" class="wave w1" /><path d="M19 5a10 10 0 0 1 0 14" class="wave w2" /><path d="m16 9 6 6M22 9l-6 6" class="mute" /></svg>
         <span class="lbl">Sound on</span>
       </button>
+      <button id="guestbook-btn" class="icon-btn" type="button" title="Read and sign the guestbook">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" /><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" class="page" /><path d="M5 8.5h3M5 12h3" class="lines" /></svg>
+        <span class="lbl">Guestbook</span>
+      </button>
       <button id="zoom-in" class="icon-btn icon-only" type="button" title="Zoom in">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3M11 8v6M8 11h6" /></svg>
         <span class="lbl">Zoom in</span>
@@ -87,7 +101,7 @@
       </button>
     </div>
   </div>
-  <p id="hint" class="hint">WASD to move // E to talk // M mood // V camera // Click the ground to walk</p>
+  <p id="hint" class="hint">WASD to move // E to talk // M mood // R weather // V camera // Click the ground to walk</p>
   <div id="toast" class="toast" aria-live="polite"></div>
   <button id="prompt" class="prompt" type="button"></button>
   <div id="gamebar" class="gamebar" aria-live="polite">
@@ -104,6 +118,31 @@
     <div id="panel-tags" class="tags"></div>
     <div id="panel-links" class="links"></div>
   </aside>
+
+  <!-- Guestbook -->
+  <dialog id="guestbook" class="gb" aria-labelledby="gb-title">
+    <div class="gb-head">
+      <div>
+        <p class="eyebrow">Leave a note on the island</p>
+        <h2 id="gb-title">Guestbook</h2>
+      </div>
+      <button id="gb-close" class="icon-btn icon-only" type="button" title="Close">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        <span class="lbl">Close</span>
+      </button>
+    </div>
+    <form id="gb-form" class="gb-form" novalidate>
+      <label>Your name<input name="name" maxlength="24" autocomplete="nickname" required /></label>
+      <label>Message<textarea name="message" maxlength="200" rows="3" required></textarea></label>
+      <input name="website" class="gb-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <div class="gb-row">
+        <span id="gb-count" class="gb-count">0/200</span>
+        <button class="btn primary" type="submit">Pin my note</button>
+      </div>
+      <p id="gb-status" class="gb-status" role="status"></p>
+    </form>
+    <ul id="gb-list" class="gb-list"></ul>
+  </dialog>
 
   <!-- Finale -->
   <div id="finale" class="intro hidden" role="dialog" aria-modal="true" aria-labelledby="finale-title">

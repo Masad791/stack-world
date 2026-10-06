@@ -15,7 +15,7 @@ export const MOODS = {
   },
   night: {
     label: 'Starry night', unlit: 0.55, mist: 0.3, pollen: 0, skyTop: '#0b1640', skyBottom: '#2a3b78', sunGlow: '#9fb6ff', fog: '#1d2b5c', fogNear: 45, fogFar: 125,
-    hemiSky: '#4a5fa8', hemiGround: '#141f30', hemi: 0.55, sun: '#b9c8ff', sunI: 0.65, sunPos: [-20, 35, 25],
+    hemiSky: '#4a5fa8', hemiGround: '#141f30', hemi: 0.7, sun: '#b9c8ff', sunI: 0.65, sunPos: [-20, 35, 25],
     sea: '#1d3a7a', grass: '#3f6f5a', lamps: 3.2, fireflies: 1, petals: 0, bloom: 1.05, exposure: 0.85,
   },
   sakura: {
@@ -24,7 +24,10 @@ export const MOODS = {
     sea: '#8fd3f5', grass: '#9fd47a', lamps: 0, fireflies: 0, petals: 1, bloom: 0.3, exposure: 1,
   },
 };
-export const MOOD_ORDER = ['morning', 'golden', 'night', 'sakura'];
+// 'cycle' is the living day: the moods above blend through a 24 hour clock while the sun and moon cross the sky.
+export const MOOD_ORDER = ['cycle', 'morning', 'golden', 'night', 'sakura'];
+const DAY_SECONDS = 300; // one full day and night
+const DAY_KEYS = [[0, 'night'], [4.5, 'night'], [5.75, 'golden'], [7.25, 'morning'], [16.5, 'morning'], [18.25, 'golden'], [19.75, 'night'], [24, 'night']];
 
 const COLOR_KEYS = ['skyTop', 'skyBottom', 'sunGlow', 'fog', 'hemiSky', 'hemiGround', 'sun', 'sea', 'grass'];
 const NUM_KEYS = ['fogNear', 'fogFar', 'hemi', 'sunI', 'lamps', 'fireflies', 'petals', 'bloom', 'exposure', 'mist', 'pollen', 'unlit'];
@@ -294,8 +297,38 @@ export function createNature(ctx) {
   });
 
   // ---------- Moods ----------
-  let target = MOODS.morning;
-  const cur = moodState(target);
+  let cycling = true;
+  let hours = 8.5; // the island wakes up mid-morning
+  const dayTarget = moodState(MOODS.morning);
+  dayTarget.sunPos = [0, 0, 0];
+  const moodColors = Object.fromEntries(Object.keys(MOODS).map((name) => [name, moodState(MOODS[name])]));
+  // Blend the two moods either side of the current hour, and put the sun (or moon) on its arc.
+  const blendDay = () => {
+    const i = DAY_KEYS.findIndex(([h]) => h > hours);
+    const [h0, a] = DAY_KEYS[i - 1];
+    const [h1, b] = DAY_KEYS[i];
+    const f = THREE.MathUtils.smoothstep(hours, h0, h1);
+    COLOR_KEYS.forEach((k) => dayTarget[k].copy(moodColors[a][k]).lerp(moodColors[b][k], f));
+    NUM_KEYS.forEach((k) => (dayTarget[k] = THREE.MathUtils.lerp(MOODS[a][k], MOODS[b][k], f)));
+    // Sun from 5:30 to 19:30, moon for the rest; both rise in the east and set in the west.
+    const day = (hours - 5.5) / 14;
+    const isDay = day >= 0 && day <= 1;
+    const arc = isDay ? day : ((hours - 19.5 + 24) % 24) / 10;
+    const a2 = arc * Math.PI;
+    // The moon rides higher, so moonlight reaches the ground instead of grazing it.
+    const y = isDay ? Math.max(6, Math.sin(a2) * 42) : Math.max(18, Math.sin(a2) * 40);
+    dayTarget.sunPos[0] = -Math.cos(a2) * 48;
+    dayTarget.sunPos[1] = y;
+    dayTarget.sunPos[2] = 16;
+    // Light fades near the horizon, which also hides the sun-to-moon hand-off.
+    dayTarget.sunI *= 0.35 + 0.65 * THREE.MathUtils.smoothstep(y, 6, 18);
+  };
+  blendDay();
+  let target = dayTarget;
+  const cur = moodState(MOODS.morning);
+  COLOR_KEYS.forEach((k) => cur[k].copy(dayTarget[k]));
+  NUM_KEYS.forEach((k) => (cur[k] = dayTarget[k]));
+  cur.sunPos.set(...dayTarget.sunPos);
   const tmp = new THREE.Color();
   const sunTarget = new THREE.Vector3();
   // Labels, name tags, bubbles, billboard screens and orb faces are unlit textures: at full white they
@@ -345,10 +378,25 @@ export function createNature(ctx) {
     get wind() {
       return windState.speed;
     },
+    // What the weather needs to grey the sky, flatten the grass and drift with the wind.
+    handles: { skyUniforms, cloudMat, grassMat, stars, flies, pollen, windState, birds },
+    get hours() {
+      return hours;
+    },
+    get clockLabel() {
+      const h = Math.floor(hours);
+      const m = Math.floor((hours % 1) * 6) * 10;
+      return `${hours >= 5.5 && hours < 19.5 ? 'Day' : 'Night'} ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    },
     setMood(name) {
-      target = MOODS[name];
+      cycling = name === 'cycle';
+      target = cycling ? dayTarget : MOODS[name];
     },
     update(dt, t, player) {
+      if (cycling) {
+        hours = (hours + (dt * 24) / DAY_SECONDS) % 24;
+        blendDay();
+      }
       // Logo textures load asynchronously, so keep re-collecting for the first few seconds.
       if (!unlitMats || (t < 8 && Math.floor(t) !== Math.floor(t - dt))) collectUnlit();
       wind.value = t;

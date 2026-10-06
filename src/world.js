@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { ZONES, PROJECTS, ORBS, ARENA, GROVE, SECRETS } from './data.js';
+import { ZONES, PROJECTS, ORBS, ARENA, GROVE, SECRETS, GUESTBOOK } from './data.js';
 
 export const ISLAND_R = 76;
 
@@ -468,6 +468,7 @@ export function buildWorld(scene) {
   }
 
   // ---------- Trees and rocks, kept off districts and paths ----------
+  col(GUESTBOOK.x, GUESTBOOK.z, 1.9); // the board itself is built in guestbook.js
   const trees = [];
   for (let tries = 0; trees.length < 85 && tries < 3000; tries++) {
     const a = rand() * Math.PI * 2;
@@ -478,6 +479,7 @@ export function buildWorld(scene) {
     if (Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 4) continue;
     if (Math.hypot(x - GROVE.x, z - GROVE.z) < GROVE.r + 2) continue;
     if (SECRETS.some((sc) => Math.hypot(x - sc.x, z - sc.z) < sc.r + 3)) continue;
+    if (Math.hypot(x - GUESTBOOK.x, z - GUESTBOOK.z) < 5) continue;
     if (nearPath(x, z) || trees.some((tr) => Math.hypot(tr.x - x, tr.z - z) < 3.6)) continue;
     trees.push({ x, z });
   }

@@ -10,6 +10,8 @@ import { buildWorld, ISLAND_R, textCanvas } from './world.js';
 import { createNature, MOODS, MOOD_ORDER } from './nature.js';
 import { createMusic } from './music.js';
 import { createSecrets } from './secrets.js';
+import { createWeather } from './weather.js';
+import { createGuestbook } from './guestbook.js';
 import { ZONES, CONTACT, PORTFOLIO, HELPERS, FACTS, BADGES, ARENA, GROVE, SECRETS } from './data.js';
 
 // 3D labels are drawn onto canvases once, so wait (briefly) for the brand font first.
@@ -273,6 +275,7 @@ $('compass').onclick = toggleCompass;
 syncCompass();
 
 function talk(npc) {
+  if (npc === BOARD) return guestbook.open();
   const { def } = npc;
   if (!talked.has(def.id)) {
     talked.add(def.id);
@@ -343,13 +346,14 @@ let nearby = null; // helper bot within talking range
 const setZoom = (z) => (zoom = THREE.MathUtils.clamp(z, 0.6, 1.5));
 
 addEventListener('keydown', (e) => {
-  if (!started || e.target.closest?.('a, button')) return;
+  if (!started || e.target.closest?.('a, button, input, textarea') || document.querySelector('dialog[open]')) return;
   const k = e.key.toLowerCase();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
   if (k === 'e' && nearby) return talk(nearby);
   if (k === 'escape') return closePanel();
   if (k === 'm') return cycleMood();
   if (k === 'v') return cycleView();
+  if (k === 'r') return weather.cycle();
   keys.add(k);
   if (k === ' ' && bot.jump()) blip(300, 600, 0.15, 'square', 0.05);
   if (k === '+' || k === '=') setZoom(zoom - 0.1);
@@ -666,6 +670,39 @@ function updateMusic(dt) {
   });
 }
 
+// ---------- Guestbook and weather ----------
+const BOARD = { def: { name: 'the guestbook' } };
+const guestbook = createGuestbook({ scene, toast, onSigned: () => award('guest') });
+$('guestbook-btn').onclick = () => guestbook.open();
+// Created last, so every material in the world can get wet and snowy.
+const weather = createWeather({
+  scene, camera, renderer, nature, world, sun, hemi, islandR: ISLAND_R, touch, getAudio,
+  soundOn: () => soundOn && started,
+  noSnow: [bot.group, ...allBots.map((n) => n.bot.group)], // moving bots would slide through the snow pattern
+});
+const WX_NAMES = { clear: 'Clear sky', rain: 'Rain', snow: 'Snow' };
+const WX_TOASTS = { clear: 'The sky is clearing up', rain: 'Clouds are gathering. Rain is coming', snow: 'It feels cold. Snow is on its way' };
+weather.onChange(({ mode, kind, reason }) => {
+  $('weather').dataset.wx = kind;
+  label('weather', mode === 'auto' ? 'Auto weather' : WX_NAMES[kind]);
+  if (reason === 'mode') toast(mode === 'auto' ? 'Weather changes on its own' : WX_TOASTS[kind]);
+  else if (started) toast(WX_TOASTS[kind]);
+});
+$('weather').onclick = () => weather.cycle();
+
+// Walking through a puddle splashes.
+let splashClock = 0;
+function splash(dt, speed01) {
+  splashClock -= dt;
+  if (speed01 < 0.3 || bot.y !== 0 || splashClock > 0 || !weather.puddleAt(pos.x, pos.z)) return;
+  splashClock = 0.16;
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2;
+    spawn(new THREE.Vector3(pos.x, 0.2, pos.z), new THREE.Vector3(Math.cos(a) * 2.2, 2.5 + Math.random() * 2, Math.sin(a) * 2.2), i % 2 ? '#cfe8ff' : '#9cc9ee', 0.45);
+  }
+  blip(900, 300, 0.09, 'sine', 0.035);
+}
+
 // ---------- Loop ----------
 const camPos = new THREE.Vector3();
 const lookAt = new THREE.Vector3();
@@ -700,16 +737,25 @@ function cycleView() {
 }
 $('view').onclick = cycleView;
 
-let moodIndex = 0;
+let moodIndex = 0; // 'cycle': the living day
 function cycleMood() {
   moodIndex = (moodIndex + 1) % MOOD_ORDER.length;
   const name = MOOD_ORDER[moodIndex];
   nature.setMood(name);
-  label('mood', MOODS[name].label);
+  label('mood', name === 'cycle' ? nature.clockLabel : MOODS[name].label);
   $('mood').dataset.mood = name;
-  toast(MOODS[name].label);
+  toast(name === 'cycle' ? 'Day cycle: the sun and moon move on their own' : MOODS[name].label);
 }
 $('mood').onclick = cycleMood;
+// The clock icon's hands follow the island's time.
+const syncClock = () => {
+  if (MOOD_ORDER[moodIndex] !== 'cycle') return;
+  label('mood', nature.clockLabel);
+  const h = nature.hours;
+  $('mood').querySelector('.hand-h').style.transform = `rotate(${(h % 12) * 30}deg)`;
+  $('mood').querySelector('.hand-m').style.transform = `rotate(${(h % 1) * 360 - 90}deg)`;
+};
+syncClock();
 
 let musicEverywhere = store.get('music', false);
 const syncMusic = () => {
@@ -764,9 +810,13 @@ function updateBots(dt, t) {
       n.say(FACTS[n.factIndex % FACTS.length]);
     }
   });
+  if (!nearby && Math.hypot(pos.x - guestbook.spot.x, pos.z - guestbook.spot.z) < 4.2) nearby = BOARD;
   const show = started && nearby && !games.active;
   $('prompt').classList.toggle('show', Boolean(show));
-  if (show) $('prompt').textContent = touch ? `Talk to ${nearby.def.name}` : `Press E to talk to ${nearby.def.name}`;
+  if (show) {
+    const what = nearby === BOARD ? 'sign the guestbook' : `talk to ${nearby.def.name}`;
+    $('prompt').textContent = touch ? what[0].toUpperCase() + what.slice(1) : `Press E to ${what}`;
+  }
 }
 
 function tick() {
@@ -782,12 +832,15 @@ function tick() {
   }
   updateArrow(t);
   nature.update(dt, t, pos);
+  weather.update(dt, t, pos, heading, started && speed01 > 0.3 && bot.y === 0);
+  if (started) splash(dt, speed01);
   secrets.update(dt, t, pos, speed01, nature.wind);
   updateMusic(dt, t);
   updateParticles(dt, speed01);
   if (marker.visible) marker.scale.setScalar(THREE.MathUtils.lerp(marker.scale.x, 1, dt * 8));
   frameCamera(dt, false);
   if (++frame % 3 === 0) drawMinimap();
+  if (frame % 20 === 0) syncClock();
   if (composer) composer.render();
   else renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -814,7 +867,7 @@ const start = () => {
   setTimeout(() => ($('hint').style.opacity = '0'), 10000);
 };
 $('start').onclick = start;
-if (import.meta.env.DEV) window.__sw = { pos, start, world, helpers, games }; // dev-only hook for testing; stripped from builds
+if (import.meta.env.DEV) window.__sw = { pos, start, world, helpers, games, weather, nature }; // dev-only hook for testing; stripped from builds
 $('keep-playing').onclick = () => $('finale').classList.add('hidden');
 // Repeat visits load from the local cache (see public/sw.js). Off in dev so hot reload stays honest.
 if (!import.meta.env.DEV && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});

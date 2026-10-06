@@ -132,7 +132,11 @@ export const BADGES = [
   ['quiz', 'Quiz Master', 'Score 5 of 5 in the Stack Quiz'],
   ['social', 'Social Bot', 'Talk to all 5 helper bots'],
   ['wanderer', 'Wanderer', 'Find all 4 secret places'],
+  ['guest', 'Guest', 'Pin a note on the guestbook'],
 ];
+
+// Guestbook notice board, just off the plaza between the Projects and Data paths (in view at spawn).
+export const GUESTBOOK = { x: -5.3, z: 11.6 };
 
 // Music Grove: a quiet clearing east of the plaza where the waltz plays. Not a district.
 export const GROVE = { x: 46, z: 0, r: 10, name: 'Music Grove' };
