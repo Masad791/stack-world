@@ -6,10 +6,11 @@
   --line: rgba(27, 27, 31, 0.12);
   /* Keep the interface clear of notches, rounded corners and the home indicator. */
   --edge: 16px;
-  --top: calc(var(--edge) + env(safe-area-inset-top, 0px));
-  --left: calc(var(--edge) + env(safe-area-inset-left, 0px));
-  --right: calc(var(--edge) + env(safe-area-inset-right, 0px));
-  --bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px));
+  /* --vv-*: how far the visible area is inset when the page is zoomed (set from main.js). */
+  --top: calc(var(--edge) + env(safe-area-inset-top, 0px) + var(--vv-top, 0px));
+  --left: calc(var(--edge) + env(safe-area-inset-left, 0px) + var(--vv-left, 0px));
+  --right: calc(var(--edge) + env(safe-area-inset-right, 0px) + var(--vv-right, 0px));
+  --bottom: calc(var(--edge) + env(safe-area-inset-bottom, 0px) + var(--vv-bottom, 0px));
 }
 * {
   box-sizing: border-box;
@@ -20,6 +21,7 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+  touch-action: pan-x pan-y; /* scrolling inside dialogs yes, pinch-zooming the page no */
   background: #a8dcff;
   color: var(--ink);
   font-family: "Space Grotesk", system-ui, sans-serif;

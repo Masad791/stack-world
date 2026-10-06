@@ -366,6 +366,28 @@ canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   setZoom(zoom + Math.sign(e.deltaY) * 0.08);
 }, { passive: false });
+// A touchpad pinch arrives as ctrl+wheel. Anywhere on the page (buttons, intro, panel) it zooms the
+// camera, never the page: a pinch-zoomed page pushes the map and right-hand buttons off screen.
+addEventListener('wheel', (e) => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  if (e.target !== canvas) setZoom(zoom + Math.sign(e.deltaY) * 0.08);
+}, { passive: false });
+addEventListener('gesturestart', (e) => e.preventDefault()); // Safari's pinch
+// If the page is zoomed anyway (touch screens, browser quirks), keep the HUD inside the visible part.
+const vv = window.visualViewport;
+const followViewport = () => {
+  const root = document.documentElement;
+  const offsets = {
+    '--vv-top': vv.offsetTop,
+    '--vv-left': vv.offsetLeft,
+    '--vv-right': root.clientWidth - vv.offsetLeft - vv.width,
+    '--vv-bottom': root.clientHeight - vv.offsetTop - vv.height,
+  };
+  for (const [k, v] of Object.entries(offsets)) root.style.setProperty(k, `${Math.max(0, v)}px`);
+};
+vv?.addEventListener('resize', followViewport);
+vv?.addEventListener('scroll', followViewport);
 $('zoom-in').onclick = () => setZoom(zoom - 0.15);
 $('zoom-out').onclick = () => setZoom(zoom + 0.15);
 $('prompt').onclick = () => nearby && talk(nearby);
