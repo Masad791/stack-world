@@ -19,8 +19,10 @@ export function createSecrets({ scene, addCollider }) {
   {
     const { x: cx, z: cz } = byId.spirit;
     put(new THREE.Mesh(new THREE.CylinderGeometry(9.5, 10, 0.12, 40), mat('#4f7f45')), cx, 0.06, cz, false);
-    for (let i = 0; i < 7; i++) {
-      const a = (i / 7) * Math.PI * 2 + 0.4;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      // Leave the camera-facing side (+x,+z) open, or the canopy hides Byte and the spirits.
+      if (Math.cos(a - Math.PI / 4) > 0.2) continue;
       const x = cx + Math.cos(a) * 7.5;
       const z = cz + Math.sin(a) * 7.5;
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.2, 7, 8), mat('#5b4433')), x, 3.5, z);
@@ -113,6 +115,7 @@ export function createSecrets({ scene, addCollider }) {
       tail.rotation.x = -Math.PI / 2;
       tail.position.z = -0.6;
       g.add(torso, patch, tail);
+      g.scale.setScalar(1.8); // big enough to spot from the game camera
       scene.add(g);
       koi.push({ g, tail, r: 2 + i * 0.85, speed: (0.35 + i * 0.07) * (i % 2 ? 1 : -1), a: i * 1.3 });
     });

@@ -1,25 +1,25 @@
 import * as THREE from 'three';
-import { ZONES, ARENA, GROVE } from './data.js';
+import { ZONES, ARENA, GROVE, SECRETS } from './data.js';
 
 // Four moods the player can cycle through. Everything here is cross-faded, never switched.
 export const MOODS = {
   morning: {
-    label: 'Morning', mist: 0.55, pollen: 1, skyTop: '#5eb4ff', skyBottom: '#d9f1ff', sunGlow: '#fff6d8', fog: '#cfeaff', fogNear: 70, fogFar: 160,
+    label: 'Morning', unlit: 1, mist: 0.38, pollen: 1, skyTop: '#5eb4ff', skyBottom: '#d9f1ff', sunGlow: '#fff6d8', fog: '#cfeaff', fogNear: 70, fogFar: 160,
     hemiSky: '#dff1ff', hemiGround: '#6f9e4f', hemi: 1.4, sun: '#fff4e0', sunI: 2.4, sunPos: [25, 40, 12],
     sea: '#5cc8f0', grass: '#8fcf6a', lamps: 0, fireflies: 0, petals: 0, bloom: 0.25, exposure: 1,
   },
   golden: {
-    label: 'Golden hour', mist: 0.28, pollen: 0.7, skyTop: '#ff9e7a', skyBottom: '#ffe2a8', sunGlow: '#ffd27a', fog: '#ffd9b0', fogNear: 55, fogFar: 140,
+    label: 'Golden hour', unlit: 0.9, mist: 0.28, pollen: 0.7, skyTop: '#ff9e7a', skyBottom: '#ffe2a8', sunGlow: '#ffd27a', fog: '#ffd9b0', fogNear: 55, fogFar: 140,
     hemiSky: '#ffd6b0', hemiGround: '#7a6a3a', hemi: 1.1, sun: '#ffb46b', sunI: 2.8, sunPos: [40, 14, -10],
     sea: '#f2a97a', grass: '#b8c95a', lamps: 1.2, fireflies: 0.2, petals: 0, bloom: 0.45, exposure: 1.05,
   },
   night: {
-    label: 'Starry night', mist: 0.3, pollen: 0, skyTop: '#0b1640', skyBottom: '#2a3b78', sunGlow: '#9fb6ff', fog: '#1d2b5c', fogNear: 45, fogFar: 125,
-    hemiSky: '#5a6fb8', hemiGround: '#1a2a3a', hemi: 0.75, sun: '#b9c8ff', sunI: 0.9, sunPos: [-20, 35, 25],
-    sea: '#1d3a7a', grass: '#3f6f5a', lamps: 3.2, fireflies: 1, petals: 0, bloom: 1.05, exposure: 0.95,
+    label: 'Starry night', unlit: 0.55, mist: 0.3, pollen: 0, skyTop: '#0b1640', skyBottom: '#2a3b78', sunGlow: '#9fb6ff', fog: '#1d2b5c', fogNear: 45, fogFar: 125,
+    hemiSky: '#4a5fa8', hemiGround: '#141f30', hemi: 0.55, sun: '#b9c8ff', sunI: 0.65, sunPos: [-20, 35, 25],
+    sea: '#1d3a7a', grass: '#3f6f5a', lamps: 3.2, fireflies: 1, petals: 0, bloom: 1.05, exposure: 0.85,
   },
   sakura: {
-    label: 'Sakura', mist: 0.3, pollen: 0.3, skyTop: '#9fc4ff', skyBottom: '#ffe3ee', sunGlow: '#ffffff', fog: '#ffe1ec', fogNear: 60, fogFar: 150,
+    label: 'Sakura', unlit: 1, mist: 0.3, pollen: 0.3, skyTop: '#9fc4ff', skyBottom: '#ffe3ee', sunGlow: '#ffffff', fog: '#ffe1ec', fogNear: 60, fogFar: 150,
     hemiSky: '#ffe6f0', hemiGround: '#7f9e6a', hemi: 1.35, sun: '#fff0f5', sunI: 2.2, sunPos: [20, 38, 20],
     sea: '#8fd3f5', grass: '#9fd47a', lamps: 0, fireflies: 0, petals: 1, bloom: 0.3, exposure: 1,
   },
@@ -27,7 +27,7 @@ export const MOODS = {
 export const MOOD_ORDER = ['morning', 'golden', 'night', 'sakura'];
 
 const COLOR_KEYS = ['skyTop', 'skyBottom', 'sunGlow', 'fog', 'hemiSky', 'hemiGround', 'sun', 'sea', 'grass'];
-const NUM_KEYS = ['fogNear', 'fogFar', 'hemi', 'sunI', 'lamps', 'fireflies', 'petals', 'bloom', 'exposure', 'mist', 'pollen'];
+const NUM_KEYS = ['fogNear', 'fogFar', 'hemi', 'sunI', 'lamps', 'fireflies', 'petals', 'bloom', 'exposure', 'mist', 'pollen', 'unlit'];
 
 // Mood state that is being eased toward the target mood every frame.
 function moodState(m) {
@@ -42,6 +42,8 @@ function openGround(x, z) {
   if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 0.5)) return false;
   if (Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 1) return false;
   if (Math.hypot(x - GROVE.x, z - GROVE.z) < 5) return false;
+  // No grass growing through the pond or across the shrine's stone pad.
+  if (SECRETS.some((sc) => (sc.id === 'koi' || sc.id === 'shrine') && Math.hypot(x - sc.x, z - sc.z) < sc.r + 0.5)) return false;
   return ![...ZONES, GROVE].some((zn) => {
     const len2 = zn.x * zn.x + zn.z * zn.z || 1;
     const t = Math.max(0, Math.min(1, (x * zn.x + z * zn.z) / len2));
@@ -232,11 +234,22 @@ export function createNature(ctx) {
   const windState = { angle: 0.6, speed: 1.2, x: 0, z: 0 };
   const wrapNear = (v, center, size) => center + ((((v - center + size / 2) % size) + size) % size) - size / 2;
   const edgeFade = (v, center, size) => Math.min(1, (size / 2 - Math.abs(v - center)) / (size * 0.15));
+  // Soft round dot so points read as glowing specks, not squares.
+  const dotCanvas = document.createElement('canvas');
+  dotCanvas.width = dotCanvas.height = 64;
+  const dg = dotCanvas.getContext('2d');
+  const dgrad = dg.createRadialGradient(32, 32, 0, 32, 32, 32);
+  dgrad.addColorStop(0, 'rgba(255,255,255,1)');
+  dgrad.addColorStop(0.35, 'rgba(255,255,255,0.8)');
+  dgrad.addColorStop(1, 'rgba(255,255,255,0)');
+  dg.fillStyle = dgrad;
+  dg.fillRect(0, 0, 64, 64);
+  const dotTex = new THREE.CanvasTexture(dotCanvas);
   const pointCloud = (count, size, color, blending = THREE.NormalBlending) => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size, vertexColors: true, color, transparent: true, opacity: 0, depthWrite: false, blending }));
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size, map: dotTex, vertexColors: true, color, transparent: true, opacity: 0, depthWrite: false, blending }));
     pts.frustumCulled = false;
     scene.add(pts);
     return pts;
@@ -244,11 +257,11 @@ export function createNature(ctx) {
   const randomSeeds = (n, box, extra) => Array.from({ length: n }, () => ({ x: (Math.random() - 0.5) * box, z: (Math.random() - 0.5) * box, p: Math.random() * 6, ...extra() }));
 
   const FLY_BOX = 110;
-  const flies = pointCloud(220, 0.9, '#fff3a0', THREE.AdditiveBlending);
+  const flies = pointCloud(220, 1.4, '#fff3a0', THREE.AdditiveBlending);
   const flySeed = randomSeeds(220, FLY_BOX, () => ({ y: 0.5 + Math.random() * 3 }));
 
   const POLLEN_BOX = 90;
-  const pollen = pointCloud(260, 0.22, '#ffffff');
+  const pollen = pointCloud(260, 0.35, '#ffffff');
   const pollenSeed = randomSeeds(260, POLLEN_BOX, () => ({ y: 1 + Math.random() * 9, s: 0.6 + Math.random() * 0.8 }));
 
   const PETAL_BOX = 90;
@@ -274,7 +287,7 @@ export function createNature(ctx) {
     const sp = new THREE.Sprite(mistMat);
     const a = Math.random() * Math.PI * 2;
     const r = Math.sqrt(Math.random()) * (islandR + 6);
-    sp.userData = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.8 + Math.random() * 1.6, w: 14 + Math.random() * 12 };
+    sp.userData = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.8 + Math.random() * 1.6, w: 10 + Math.random() * 9 };
     sp.scale.set(sp.userData.w, sp.userData.w * 0.32, 1);
     scene.add(sp);
     return sp;
@@ -285,6 +298,16 @@ export function createNature(ctx) {
   const cur = moodState(target);
   const tmp = new THREE.Color();
   const sunTarget = new THREE.Vector3();
+  // Labels, name tags, bubbles, billboard screens and orb faces are unlit textures: at full white they
+  // cross the bloom threshold at night and glow. Collected once (after everything is built) and dimmed per mood.
+  let unlitMats = null;
+  const collectUnlit = () => {
+    unlitMats = [];
+    scene.traverse((o) => {
+      const m = o.material;
+      if (m && !Array.isArray(m) && m.map && (m.isSpriteMaterial || m.isMeshBasicMaterial) && m !== mistMat) unlitMats.push(m);
+    });
+  };
   const apply = () => {
     skyUniforms.top.value.copy(cur.skyTop);
     skyUniforms.bottom.value.copy(cur.skyBottom);
@@ -310,6 +333,8 @@ export function createNature(ctx) {
     petals.material.opacity = cur.petals;
     if (ctx.bloom) ctx.bloom.strength = cur.bloom;
     ctx.renderer.toneMappingExposure = cur.exposure;
+    // A cool tint as it dims, so text at night reads like moonlit paper, not a lamp.
+    unlitMats?.forEach((m) => m.color.setRGB(cur.unlit, cur.unlit, Math.min(1, cur.unlit * 1.12)));
   };
   apply();
 
@@ -324,6 +349,8 @@ export function createNature(ctx) {
       target = MOODS[name];
     },
     update(dt, t, player) {
+      // Logo textures load asynchronously, so keep re-collecting for the first few seconds.
+      if (!unlitMats || (t < 8 && Math.floor(t) !== Math.floor(t - dt))) collectUnlit();
       wind.value = t;
       // Ease every mood value toward the target (about a two second cross-fade).
       const k = Math.min(1, dt * 1.6);

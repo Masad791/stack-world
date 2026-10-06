@@ -16,6 +16,8 @@ import { ZONES, CONTACT, PORTFOLIO, HELPERS, FACTS, BADGES, ARENA, GROVE, SECRET
 await Promise.race([document.fonts?.load('600 54px "Space Grotesk"'), new Promise((r) => setTimeout(r, 1500))]).catch(() => {});
 
 const $ = (id) => document.getElementById(id);
+// Corner buttons hold an SVG icon plus a .lbl span; only the label text changes.
+const label = (id, text) => ($(id).querySelector('.lbl').textContent = text);
 const touch = matchMedia('(pointer: coarse)').matches;
 const store = {
   get(key, fallback) {
@@ -134,7 +136,7 @@ const blip = (from, to, dur = 0.18, type = 'triangle', vol = 0.12) => {
   o.stop(audio.currentTime + dur);
 };
 const syncSound = () => {
-  $('sound').textContent = soundOn ? 'Sound on' : 'Sound off';
+  label('sound', soundOn ? 'Sound on' : 'Sound off');
   $('sound').setAttribute('aria-pressed', String(soundOn));
 };
 $('sound').onclick = () => {
@@ -258,7 +260,7 @@ $('gamebar-quit').onclick = () => {
 // ---------- Talking to helper bots ----------
 let compassOn = store.get('compass', false);
 const syncCompass = () => {
-  $('compass').textContent = compassOn ? 'Compass on' : 'Compass';
+  label('compass', compassOn ? 'Compass on' : 'Compass');
   $('compass').setAttribute('aria-pressed', String(compassOn));
 };
 const toggleCompass = () => {
@@ -693,7 +695,7 @@ let orbit = Math.PI / 4;
 function cycleView() {
   view = VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
   document.body.classList.toggle('cinematic', view === 'cinematic');
-  $('view').textContent = VIEW_LABELS[view];
+  label('view', VIEW_LABELS[view]);
   toast(view === 'cinematic' ? 'Cinematic: the camera drifts around Byte. Press V to return.' : VIEW_LABELS[view]);
 }
 $('view').onclick = cycleView;
@@ -703,14 +705,15 @@ function cycleMood() {
   moodIndex = (moodIndex + 1) % MOOD_ORDER.length;
   const name = MOOD_ORDER[moodIndex];
   nature.setMood(name);
-  $('mood').textContent = MOODS[name].label;
+  label('mood', MOODS[name].label);
+  $('mood').dataset.mood = name;
   toast(MOODS[name].label);
 }
 $('mood').onclick = cycleMood;
 
 let musicEverywhere = store.get('music', false);
 const syncMusic = () => {
-  $('music').textContent = musicEverywhere ? 'Music on' : 'Music';
+  label('music', musicEverywhere ? 'Music on' : 'Music');
   $('music').setAttribute('aria-pressed', String(musicEverywhere));
 };
 $('music').onclick = () => {
@@ -813,4 +816,6 @@ const start = () => {
 $('start').onclick = start;
 if (import.meta.env.DEV) window.__sw = { pos, start, world, helpers, games }; // dev-only hook for testing; stripped from builds
 $('keep-playing').onclick = () => $('finale').classList.add('hidden');
+// Repeat visits load from the local cache (see public/sw.js). Off in dev so hot reload stays honest.
+if (!import.meta.env.DEV && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
 if (touch) $('hint').textContent = 'Tap the ground to walk. Tap "Talk" near a helper bot to chat or play.';
