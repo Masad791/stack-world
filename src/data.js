@@ -77,15 +77,21 @@ export const ORBS = [
 // ---------- Helper bots ----------
 // role decides what talking to them does (see main.js). home = where they hang out.
 export const HELPERS = [
-  { id: 'scout', name: 'Scout', role: 'guide', home: [3.5, 6.5], wander: 4, shell: 0xffd166, accent: 0x1b1b1f,
+  // palette + outfit: each helper dresses for its corner of the island (see OUTFITS in bot.js).
+  { id: 'scout', name: 'Scout', role: 'guide', home: [3.5, 6.5], wander: 4, outfit: 'explorer',
+    palette: { shell: 0xf6efdf, body: 0xe9dcbc, dark: 0x3d4a2a, accent: 0x6b7f3a, glow: 0xffd58a },
     greet: 'Hi, I\'m Scout! I know every corner of this island. Want me to walk you somewhere?' },
-  { id: 'bugsy', name: 'Bugsy', role: 'bugs', home: [-12, -28], wander: 2.5, shell: 0x9be15d, accent: 0xe53935,
+  { id: 'bugsy', name: 'Bugsy', role: 'bugs', home: [-12, -28], wander: 2.5, outfit: 'exterminator',
+    palette: { shell: 0xe8f5dc, body: 0xa5d67a, dark: 0x1f4d2b, accent: 0xe53935, glow: 0xb9ff8a },
     greet: 'Bugs escaped into my arena! Squash as many as you can in 30 seconds. Fifteen earns the Debugger badge.' },
-  { id: 'quizzy', name: 'Quizzy', role: 'quiz', home: [30, -17], wander: 2.5, shell: 0xc792ea, accent: 0xffffff,
+  { id: 'quizzy', name: 'Quizzy', role: 'quiz', home: [30, -17], wander: 2.5, outfit: 'scholar',
+    palette: { shell: 0xf4efff, body: 0xc9b6f2, dark: 0x2e1f5e, accent: 0x6b4fbf, glow: 0xd7c2ff },
     greet: 'Think you know Asad\'s work? Five quick questions about his real projects. Get all five for Quiz Master.' },
-  { id: 'dash', name: 'Dash', role: 'race', home: [-24, 22], wander: 2.5, shell: 0x61dafb, accent: 0xff4a1c,
+  { id: 'dash', name: 'Dash', role: 'race', home: [-24, 22], wander: 2.5, outfit: 'racer',
+    palette: { shell: 0xf2fbff, body: 0x8fdcf7, dark: 0x0c2d5e, accent: 0xff4a1c, glow: 0x9fe8ff },
     greet: 'Ship it! Run through 7 deploy rings in order. Finish under 25 seconds for the Speedrunner badge.' },
-  { id: 'hiro', name: 'Hiro', role: 'hire', home: [6, -46], wander: 2, shell: 0x2b2b31, accent: 0xff4a1c,
+  { id: 'hiro', name: 'Hiro', role: 'hire', home: [6, -46], wander: 2, outfit: 'suit',
+    palette: { shell: 0xeef2f8, body: 0x15305e, dark: 0x0b1d3d, accent: 0x2f6fe4, glow: 0x9cc8ff },
     greet: 'Asad replies in about two hours and is open to freelance and full-time work. Want his details?' },
 ];
 
@@ -131,12 +137,45 @@ export const BADGES = [
   ['speedrunner', 'Speedrunner', `Finish the deploy race under ${RACE_PAR} s`],
   ['quiz', 'Quiz Master', 'Score 5 of 5 in the Stack Quiz'],
   ['social', 'Social Bot', 'Talk to all 5 helper bots'],
-  ['wanderer', 'Wanderer', 'Find all 4 secret places'],
+  ['wanderer', 'Wanderer', 'Find all 5 secret places'],
   ['guest', 'Guest', 'Pin a note on the guestbook'],
+  ['naturalist', 'Naturalist', 'Spot 3 rare animals'],
+  ['traveller', 'Traveller', 'Visit all three worlds through the Sky Gate'],
 ];
 
 // Guestbook notice board, just off the plaza between the Projects and Data paths (in view at spawn).
 export const GUESTBOOK = { x: -5.3, z: 11.6 };
+
+// Sunset Point: a bench on the eastern rim, facing open sky where the sun goes down (angle 0 = +x).
+export const BENCH = { x: 72.2, z: 8, angle: 0 };
+
+// Sky Gate: at the end of its own path west of the plaza. It leads to other worlds, each a separate
+// floating island far out in the sky (only the one you're on is drawn and updated).
+export const GATE = { x: -63, z: -20, name: 'Sky Gate' };
+export const REALMS = {
+  home: { name: 'Home Island', x: 0, z: 0, blurb: 'Back to Byte\'s island and the portfolio.' },
+  rome: { name: 'Roman Forum', x: 1400, z: 0, blurb: 'Marble ruins, the Colosseum, an aqueduct, and a philosopher living in a jar.' },
+  peaks: { name: 'Karakoram Peaks', x: -1400, z: 0, blurb: 'A base camp below K2, a glacier, a frozen lake and the markhor.' },
+  coast: { name: 'Coral Coast', x: 0, z: 1400, blurb: 'Palm trees, a lighthouse, crabs, and the rare hawksbill turtle.' },
+};
+
+// Highland Forest: dense woods on the south-east rim where rare animals sometimes show themselves.
+export const FOREST = { x: 29, z: 57, r: 13, name: 'Highland Forest' };
+
+// Rare animals. `chance` is the odds of seeing one on a visit (it grows each time you miss it), and
+// some only come out at night. Facts follow the IUCN Red List; population figures are estimates.
+export const ANIMALS = [
+  { id: 'panda', name: 'Giant Panda', latin: 'Ailuropoda melanoleuca', status: 'Vulnerable', chance: 0.55, when: 'any',
+    text: 'About 1,860 live in the wild, in the misty bamboo forests of Sichuan, Shaanxi and Gansu in China. They eat bamboo for up to 14 hours a day, gripping stalks with a "pseudo-thumb", an enlarged wrist bone. Protected reserves helped move them from Endangered to Vulnerable in 2016.' },
+  { id: 'redpanda', name: 'Red Panda', latin: 'Ailurus fulgens', status: 'Endangered', chance: 0.4, when: 'any',
+    text: 'Possibly fewer than 10,000 remain, in the Eastern Himalayas and south-west China. Despite the name it is not a bear and not a close relative of the giant panda: it is the only living member of its own family. It spends most of its life in trees and wraps its ringed tail around itself like a blanket.' },
+  { id: 'leopard', name: 'Snow Leopard', latin: 'Panthera uncia', status: 'Vulnerable', chance: 0.22, when: 'any',
+    text: 'Only a few thousand are left (estimates range from about 2,700 to 6,500) across the high mountains of Central and South Asia, including Pakistan\'s Karakoram and Hindu Kush. Its thick tail is almost as long as its body, for balance on cliffs and as a scarf against the cold. Unlike other big cats, it cannot roar.' },
+  { id: 'kakapo', name: 'Kakapo', latin: 'Strigops habroptilus', status: 'Critically Endangered', chance: 0.5, when: 'night',
+    text: 'Only about 250 exist, all on predator-free islands in New Zealand, and every one has a name. It is the world\'s heaviest parrot, cannot fly, comes out at night and has a sweet, musty smell. It only breeds in years when the rimu trees fruit heavily.' },
+  { id: 'pangolin', name: 'Chinese Pangolin', latin: 'Manis pentadactyla', status: 'Critically Endangered', chance: 0.3, when: 'night',
+    text: 'Pangolins are the most trafficked wild mammals in the world, hunted for their scales and meat. The scales are keratin, the same material as your fingernails. It has no teeth: it eats ants and termites with a long sticky tongue and curls into a ball when threatened.' },
+];
 
 // Music Grove: a quiet clearing east of the plaza where the waltz plays. Not a district.
 export const GROVE = { x: 46, z: 0, r: 10, name: 'Music Grove' };
@@ -151,4 +190,6 @@ export const SECRETS = [
     line: 'Sunflowers, butterflies and an old windmill that never stops turning.' },
   { id: 'shrine', name: 'Wind Shrine', x: -45, z: -48, r: 6.5, style: 'shrine',
     line: 'Ring the chimes and look up: an island floats in the sky above the sea.' },
+  { id: 'sakura', name: 'Sakura Garden', x: 58, z: 32, r: 10, style: 'sakura',
+    line: 'Cherry trees in full bloom, letting go of their petals one by one. Sit a while.' },
 ];

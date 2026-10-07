@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { ZONES, PROJECTS, ORBS, ARENA, GROVE, SECRETS, GUESTBOOK } from './data.js';
+import { gpuSway } from './perf.js';
+import { ZONES, PROJECTS, ORBS, ARENA, GROVE, SECRETS, GUESTBOOK, BENCH, FOREST, GATE } from './data.js';
 
 export const ISLAND_R = 76;
 
@@ -42,6 +43,109 @@ export function textCanvas(text, { w = 512, h = 128, bg = '#ffffff', fg = '#1b1b
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
+  return tex;
+}
+
+// Ground: soft patches of lighter and darker grass plus worn earth along every path, painted once.
+// It is mostly white so the mood system can still tint the grass by multiplying its colour.
+function groundTexture() {
+  const S = 1024;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e9ece4';
+  g.fillRect(0, 0, S, S);
+  const r = rng(11);
+  const blob = (x, y, rad, color) => {
+    const grad = g.createRadialGradient(x, y, 0, x, y, rad);
+    grad.addColorStop(0, color);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  };
+  for (let i = 0; i < 260; i++) blob(r() * S, r() * S, 20 + r() * 90, r() < 0.5 ? 'rgba(255,255,240,0.22)' : 'rgba(70,90,40,0.13)');
+  for (let i = 0; i < 1600; i++) blob(r() * S, r() * S, 2 + r() * 6, r() < 0.5 ? 'rgba(60,80,30,0.16)' : 'rgba(255,255,230,0.18)');
+  // Worn, earthy shoulders along the paths (world x, z map to canvas x, y).
+  const toPx = (v) => ((v / ISLAND_R + 1) / 2) * S;
+  g.lineCap = 'round';
+  [...ZONES.filter((zn) => zn.id !== 'plaza'), GROVE, GATE].forEach((zn) => {
+    g.strokeStyle = 'rgba(150,120,70,0.32)';
+    g.lineWidth = (8.5 / (ISLAND_R * 2)) * S;
+    g.beginPath();
+    g.moveTo(toPx(0), toPx(0));
+    g.lineTo(toPx(zn.x), toPx(zn.z));
+    g.stroke();
+  });
+  // A darker, mossier ring near the cliff edge.
+  const edge = g.createRadialGradient(S / 2, S / 2, S * 0.4, S / 2, S / 2, S * 0.5);
+  edge.addColorStop(0, 'rgba(0,0,0,0)');
+  edge.addColorStop(1, 'rgba(50,70,35,0.25)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, S, S);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+// Cobbled path: irregular stones in mortar, one tile repeated along each path.
+function cobbleTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#b9a98a';
+  g.fillRect(0, 0, 256, 256);
+  const r = rng(5);
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 7; col++) {
+      const w = 40 + r() * 8;
+      const x = col * 44 + (row % 2) * 22 - 22 + r() * 4;
+      const y = row * 32 + 2 + r() * 3;
+      const shade = 200 + Math.floor(r() * 40);
+      g.fillStyle = `rgb(${shade}, ${shade - 12 - Math.floor(r() * 10)}, ${shade - 34 - Math.floor(r() * 14)})`;
+      g.beginPath();
+      g.roundRect(x, y, w, 27, 9);
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.18)';
+      g.beginPath();
+      g.roundRect(x + 4, y + 3, w - 12, 7, 4);
+      g.fill();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+// District pads: concentric rings of pale stone tiles.
+function tileTexture() {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  g.fillStyle = '#d9d2c3';
+  g.fillRect(0, 0, S, S);
+  const r = rng(3);
+  for (let ring = 0; ring < 9; ring++) {
+    const r0 = ring * 28 + 6;
+    const r1 = r0 + 25;
+    const n = Math.max(1, Math.round((ring + 0.5) * 6.5));
+    for (let k = 0; k < n; k++) {
+      const a0 = (k / n) * Math.PI * 2 + 0.012;
+      const a1 = ((k + 1) / n) * Math.PI * 2 - 0.012;
+      const shade = 236 + Math.floor(r() * 16);
+      g.fillStyle = `rgb(${shade}, ${shade - 6}, ${shade - 16})`;
+      g.beginPath();
+      g.arc(S / 2, S / 2, r1, a0, a1);
+      g.arc(S / 2, S / 2, r0, a1, a0, true);
+      g.fill();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
   return tex;
 }
 
@@ -94,32 +198,38 @@ export function buildWorld(scene) {
     return sprite;
   };
 
-  // ---------- Island, beach and sea ----------
+  // ---------- Island top (the floating rock underneath lives in sky.js) ----------
   // Own material (not the shared cache) because the mood system recolors the grass.
-  const islandTop = add(new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R, ISLAND_R - 3, 4, 72), new THREE.MeshStandardMaterial({ color: '#8fcf6a', roughness: 0.85, flatShading: true })), 0, -2, 0, { cast: false, receive: true });
-  add(new THREE.Mesh(new THREE.CylinderGeometry(ISLAND_R + 4, ISLAND_R + 2, 3.6, 72), mat('#f2dfae')), 0, -2.25, 0, { cast: false, receive: true });
-  const sea = add(new THREE.Mesh(new THREE.CircleGeometry(400, 48), new THREE.MeshStandardMaterial({ color: '#5cc8f0', roughness: 0.3, metalness: 0.1 })), 0, -1.1, 0, { cast: false });
-  sea.rotation.x = -Math.PI / 2;
-  animated.push((t) => (sea.position.y = -1.1 + Math.sin(t * 0.8) * 0.08));
+  const islandTop = add(new THREE.Mesh(new THREE.CircleGeometry(ISLAND_R, 96).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#8fcf6a', map: groundTexture(), roughness: 0.9 })), 0, 0, 0, { cast: false, receive: true });
 
-  // Paths from the plaza to every district (and the Music Grove).
-  [...ZONES.filter((zn) => zn.id !== 'plaza'), GROVE].forEach((zn) => {
+  // Cobbled paths from the plaza to every district (and the Music Grove), with a kerb of stones.
+  const cobbles = cobbleTexture();
+  [...ZONES.filter((zn) => zn.id !== 'plaza'), GROVE, GATE].forEach((zn) => {
     const len = Math.hypot(zn.x, zn.z);
-    const path = add(new THREE.Mesh(new THREE.PlaneGeometry(5, len), mat('#ead7a4')), zn.x / 2, 0.02, zn.z / 2, { cast: false, receive: true });
+    const tex = cobbles.clone();
+    tex.repeat.set(1, len / 5);
+    tex.needsUpdate = true;
+    const path = add(new THREE.Mesh(new THREE.PlaneGeometry(5, len), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92 })), zn.x / 2, 0.02, zn.z / 2, { cast: false, receive: true });
     path.rotation.x = -Math.PI / 2;
     path.rotation.z = Math.atan2(zn.x, zn.z);
+    [-2.6, 2.6].forEach((side) => {
+      const kerb = add(new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.14, len - 4), mat('#a39a8a')), 0, 0.07, 0, { cast: false, receive: true });
+      kerb.position.set(zn.x / 2 + (zn.z / len) * side, 0.07, zn.z / 2 - (zn.x / len) * side);
+      kerb.rotation.y = Math.atan2(zn.x, zn.z);
+    });
   });
   const nearPath = (x, z) =>
-    [...ZONES, GROVE].some((zn) => {
+    [...ZONES, GROVE, GATE].some((zn) => {
       const len2 = zn.x * zn.x + zn.z * zn.z || 1;
       const t = Math.max(0, Math.min(1, (x * zn.x + z * zn.z) / len2));
       return Math.hypot(x - zn.x * t, z - zn.z * t) < 4.5;
     });
 
-  // District pads and floating name labels.
+  // District pads (stone tiles with a kerb) and floating name labels.
+  const tiles = new THREE.MeshStandardMaterial({ map: tileTexture(), roughness: 0.85 });
   ZONES.forEach((zn) => {
-    cyl(zn.r + 0.7, zn.r + 0.7, 0.06, '#e6dcc8', zn.x, 0.03, zn.z, 48, { cast: false, receive: true });
-    cyl(zn.r, zn.r, 0.08, '#f7f1e5', zn.x, 0.05, zn.z, 48, { cast: false, receive: true });
+    cyl(zn.r + 0.7, zn.r + 0.8, 0.16, '#a39a8a', zn.x, 0.08, zn.z, 64, { cast: false, receive: true });
+    add(new THREE.Mesh(new THREE.CylinderGeometry(zn.r, zn.r, 0.18, 64), [mat('#cfc6b5'), tiles, tiles]), zn.x, 0.09, zn.z, { cast: false, receive: true });
     zn.label = label(zn.name, zn.x, zn.id === 'hire' ? 15 : 11, zn.z, zn.color);
   });
 
@@ -358,6 +468,8 @@ export function buildWorld(scene) {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = 8;
       add(new THREE.Mesh(new THREE.PlaneGeometry(6, 3.75), new THREE.MeshBasicMaterial({ map: tex })), 0, 4, 0.19, { cast: false, parent: group });
+      // The camera can orbit now, so the screen shows on the back too.
+      add(new THREE.Mesh(new THREE.PlaneGeometry(6, 3.75), new THREE.MeshBasicMaterial({ map: tex })), 0, 4, -0.19, { cast: false, parent: group }).rotation.y = Math.PI;
       const plate = add(new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.75), new THREE.MeshBasicMaterial({ map: textCanvas(`${p.num}  ${p.title}`, { w: 640, h: 104, size: 40, radius: 20 }), transparent: true })), 0, 1.45, 0.2, { cast: false, parent: group });
       plate.renderOrder = 1;
       // Colliders across the billboard's width, in world space.
@@ -480,31 +592,98 @@ export function buildWorld(scene) {
     if (Math.hypot(x - GROVE.x, z - GROVE.z) < GROVE.r + 2) continue;
     if (SECRETS.some((sc) => Math.hypot(x - sc.x, z - sc.z) < sc.r + 3)) continue;
     if (Math.hypot(x - GUESTBOOK.x, z - GUESTBOOK.z) < 5) continue;
+    if (Math.hypot(x - BENCH.x, z - BENCH.z) < 8) continue; // keep the sunset view open
+    if (Math.hypot(x - GATE.x, z - GATE.z) < 6) continue;
+    if (Math.hypot(x - FOREST.x, z - FOREST.z) < FOREST.r + 3) continue; // the forest plants its own
     if (nearPath(x, z) || trees.some((tr) => Math.hypot(tr.x - x, tr.z - z) < 3.6)) continue;
     trees.push({ x, z });
   }
-  const greens = ['#4caf50', '#66bb6a', '#2e7d32', '#81c784'];
-  const swaying = [];
-  // Tree crowns lean gently in the breeze, each on its own phase.
-  animated.push((t) => swaying.forEach((c) => {
-    c.rotation.z = Math.sin(t * 1.1 + c.position.x * 0.3) * 0.035;
-    c.rotation.x = Math.cos(t * 0.9 + c.position.z * 0.3) * 0.03;
-  }));
+  // Natural, muted greens; every crown is roughened so no two trees share a silhouette.
+  const pineGreens = ['#2f5d3a', '#36683f', '#3f7346', '#2b5236'];
+  const leafGreens = ['#5d8f45', '#6b9a4c', '#4f7f3d', '#7aa556'];
+  const rough = (geo, amount) => {
+    const p = geo.attributes.position;
+    for (let k = 0; k < p.count; k++) {
+      const n = Math.sin(p.getX(k) * 3.1 + p.getY(k) * 1.7) * Math.cos(p.getZ(k) * 2.3 - p.getY(k)) * amount;
+      p.setXYZ(k, p.getX(k) * (1 + n), p.getY(k), p.getZ(k) * (1 + n));
+    }
+    geo.computeVertexNormals();
+    return geo;
+  };
+  // Crowns lean in the breeze on the GPU (see gpuSway), so the trees can be batched as static meshes.
+  [...pineGreens, ...leafGreens].forEach((c) => gpuSway(mat(c)));
+  leafGreens.forEach((c) => (mat(c).userData.deciduous = true)); // they turn colour in autumn (weather.js)
+  const swaying = { push() {} };
+  const bark = mat('#5a4030');
   trees.forEach(({ x, z }, i) => {
-    if (i % 6 === 5) {
-      const rock = add(new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + rand() * 0.8), mat('#a9a9b0')), x, 0.5, z);
-      rock.rotation.set(rand() * 3, rand() * 3, 0);
-      col(x, z, 1.2);
+    const kind = i % 7 === 6 ? 'rock' : i % 5 < 3 ? 'pine' : 'leaf';
+    if (kind === 'rock') {
+      // A small cluster of boulders with moss on top.
+      for (let k = 0; k < 3; k++) {
+        const s = (1.1 - k * 0.3) * (0.8 + rand() * 0.5);
+        const rx = x + (k ? (rand() - 0.5) * 2.2 : 0);
+        const rz = z + (k ? (rand() - 0.5) * 2.2 : 0);
+        const rock = add(new THREE.Mesh(new THREE.DodecahedronGeometry(s, 1), mat('#9a9893')), rx, s * 0.45, rz);
+        rock.rotation.set(rand() * 3, rand() * 3, 0);
+        rock.scale.y = 0.75;
+        const moss = add(new THREE.Mesh(new THREE.SphereGeometry(s * 0.92, 10, 6, 0, Math.PI * 2, 0, Math.PI / 3), mat('#5f7f3e')), rx, s * 0.62, rz, { cast: false });
+        moss.scale.y = 0.6;
+      }
+      col(x, z, 1.4);
       return;
     }
     const s = 0.8 + rand() * 0.6;
-    cyl(0.25 * s, 0.35 * s, 1.6 * s, '#7a5233', x, 0.8 * s, z, 6);
-    const crown = add(new THREE.Mesh(new THREE.ConeGeometry(1.7 * s, 3.6 * s, 7), mat(greens[i % 4])), x, 3.1 * s, z);
-    crown.rotation.y = rand() * 3;
-    swaying.push(crown);
-    if (i % 2) swaying.push(add(new THREE.Mesh(new THREE.ConeGeometry(1.3 * s, 2.6 * s, 7), mat(greens[(i + 1) % 4])), x, 4.4 * s, z));
+    const lean = new THREE.Group();
+    lean.position.set(x, 0, z);
+    lean.rotation.set((rand() - 0.5) * 0.08, rand() * 6, (rand() - 0.5) * 0.08);
+    scene.add(lean);
+    if (kind === 'pine') {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.32 * s, 2.4 * s, 7), bark), 0, 1.2 * s, 0, { parent: lean });
+      // Three tiers, each narrower: a real pine silhouette rather than a single cone.
+      [[1.9, 2.6, 2.1], [1.5, 2.3, 3.5], [1.0, 2.0, 4.8]].forEach(([r, h, y], k) => {
+        const tier = add(new THREE.Mesh(rough(new THREE.ConeGeometry(r * s, h * s, 9, 2), 0.08), mat(pineGreens[(i + k) % 4])), 0, y * s, 0, { parent: lean });
+        swaying.push(tier);
+      });
+    } else {
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.22 * s, 0.36 * s, 2.8 * s, 7), bark), 0, 1.4 * s, 0, { parent: lean });
+      const branch = add(new THREE.Mesh(new THREE.CylinderGeometry(0.08 * s, 0.14 * s, 1.4 * s, 5), bark), 0.35 * s, 2.4 * s, 0, { parent: lean });
+      branch.rotation.z = -0.7;
+      // A crown of overlapping leafy clumps.
+      const crown = new THREE.Group();
+      crown.position.y = 3.4 * s;
+      lean.add(crown);
+      const n = 4 + (i % 3);
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + rand();
+        const cr = (0.9 + rand() * 0.5) * s;
+        const clump = new THREE.Mesh(rough(new THREE.IcosahedronGeometry(cr, 1), 0.12), mat(leafGreens[(i + k) % 4]));
+        clump.position.set(Math.cos(a) * 0.9 * s, (rand() - 0.3) * 0.9 * s, Math.sin(a) * 0.9 * s);
+        clump.castShadow = true;
+        crown.add(clump);
+      }
+      const top = new THREE.Mesh(rough(new THREE.IcosahedronGeometry(1.2 * s, 1), 0.12), mat(leafGreens[i % 4]));
+      top.position.y = 0.8 * s;
+      top.castShadow = true;
+      crown.add(top);
+      swaying.push(crown);
+    }
     col(x, z, 0.8 * s);
   });
+
+  // Low bushes fill the gaps between trees (decoration only, no colliders).
+  for (let k = 0, placed = 0; placed < 70 && k < 900; k++) {
+    const a = rand() * Math.PI * 2;
+    const r = 14 + Math.sqrt(rand()) * (ISLAND_R - 18);
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 2) || nearPath(x, z)) continue;
+    if (SECRETS.some((sc) => Math.hypot(x - sc.x, z - sc.z) < sc.r + 1) || Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 2) continue;
+    if (Math.hypot(x - GROVE.x, z - GROVE.z) < GROVE.r || Math.hypot(x - BENCH.x, z - BENCH.z) < 5 || Math.hypot(x - FOREST.x, z - FOREST.z) < FOREST.r + 2) continue;
+    const s = 0.5 + rand() * 0.5;
+    const bush = add(new THREE.Mesh(rough(new THREE.IcosahedronGeometry(s, 1), 0.15), mat(leafGreens[k % 4])), x, s * 0.45, z);
+    bush.scale.set(1.3, 0.75, 1.1);
+    placed++;
+  }
 
   // ---------- Stack orbs ----------
   const blocked = (x, z, pad) => colliders.some((c) => Math.hypot(x - c.x, z - c.z) < c.r + pad);
@@ -560,7 +739,7 @@ export function buildWorld(scene) {
     billboards,
     orbs,
     randomSpot,
-    sea,
+    sea: null, // the old flat sea is now the cloud sea in sky.js
     islandTop,
     addCollider: col,
     update: (t, dt) => animated.forEach((fn) => fn(t, dt)),

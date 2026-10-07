@@ -13,7 +13,8 @@
 </head>
 <body>
   <canvas id="scene" aria-label="Stack World 3D scene"></canvas>
-  <div class="art" aria-hidden="true"><div class="art-grain"></div><div class="art-paper"></div><div class="art-leak"></div><div class="art-vignette"></div></div>
+  <div class="art" aria-hidden="true"><div class="art-vignette"></div></div>
+  <div id="travel" class="travel" aria-hidden="true"></div>
   <div class="letterbox top" aria-hidden="true"></div>
   <div class="letterbox bottom" aria-hidden="true"></div>
 
@@ -26,7 +27,7 @@
       <ul class="keys">
         <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows to move</li>
         <li><kbd>Shift</kbd> run &nbsp; <kbd>Space</kbd> jump</li>
-        <li>Click or tap the ground to walk there</li>
+        <li>Click or tap the ground to walk there, drag to look around</li>
         <li><kbd>E</kbd> talk to helper bots and play their minigames</li>
         <li><kbd>M</kbd> mood &nbsp; <kbd>R</kbd> weather &nbsp; <kbd>V</kbd> camera</li>
         <li>Sign the guestbook by the plaza</li>
@@ -44,7 +45,7 @@
       <span class="stat"><b id="orb-count">0</b>/14 orbs</span>
       <span class="stat"><b id="zone-count">0</b>/7 districts</span>
       <button id="badges" class="stat stat-btn" type="button"><b id="badge-count">0</b>/<span id="badge-total">7</span> badges</button>
-      <span class="stat"><b id="secret-count">0</b>/4 secrets</span>
+      <span class="stat"><b id="secret-count">0</b>/5 secrets</span>
     </div>
   </header>
   <div class="corner">
@@ -101,7 +102,7 @@
       </button>
     </div>
   </div>
-  <p id="hint" class="hint">WASD to move // E to talk // M mood // R weather // V camera // Click the ground to walk</p>
+  <p id="hint" class="hint">WASD to move // Drag to look around // Click the ground to walk // E talk // M mood // R weather</p>
   <div id="toast" class="toast" aria-live="polite"></div>
   <button id="prompt" class="prompt" type="button"></button>
   <div id="gamebar" class="gamebar" aria-live="polite">

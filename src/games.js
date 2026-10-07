@@ -156,7 +156,8 @@ export function createGames(ctx) {
   function ask() {
     const [question, right, ...wrong] = state.questions[state.q];
     ui.bar(`Stack Quiz // question ${state.q + 1}/5 // ${state.score} correct`);
-    ui.panel('quiz', {
+    // A fresh key per question: the panel skips redrawing when the key hasn't changed.
+    ui.panel(`quiz:${state.q}:${Date.now()}`, {
       kicker: `Question ${state.q + 1} of 5`,
       title: question,
       text: 'Pick one.',

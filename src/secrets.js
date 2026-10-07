@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { SECRETS } from './data.js';
+import { createPetals } from './petals.js';
 
 const byId = Object.fromEntries(SECRETS.map((s) => [s.id, s]));
 const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true, ...extra });
 
-// ctx: { scene, addCollider }
-export function createSecrets({ scene, addCollider }) {
+// ctx: { scene, addCollider, light: () => sun intensity, camera }
+export function createSecrets({ scene, addCollider, light = () => 1, camera = null }) {
   const anim = [];
   const put = (mesh, x, y, z, cast = true) => {
     mesh.position.set(x, y, z);
@@ -299,6 +300,154 @@ export function createSecrets({ scene, addCollider }) {
         d.userData.y = (d.userData.y + dt * 0.5) % 1;
         d.position.set(8.6 + d.userData.x * 0.5, -d.userData.y * 30 + 1, 3 + d.userData.x * 0.5);
       });
+    });
+  }
+
+  // ---------- Sakura Garden: cherry trees in bloom, petals always falling ----------
+  {
+    const { x: cx, z: cz } = byId.sakura;
+    // Fallen petals strewn over the grass, thickest under the trees.
+    const TREES = [[-5, -3, 1.1], [-1, -6.5, 0.95], [4.5, -5, 1.05], [6.5, 1.5, 0.9], [2.5, 6.5, 1.1], [-5.5, 4.5, 1.0]];
+    const carpet = document.createElement('canvas');
+    carpet.width = carpet.height = 1024;
+    const g = carpet.getContext('2d');
+    for (let i = 0; i < 5200; i++) {
+      const [tx, tz] = TREES[i % TREES.length];
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.pow(Math.random(), 0.6) * (i % 4 ? 3.4 : 10);
+      const px = ((tx + Math.cos(a) * d) / 11 + 1) * 512;
+      const pz = ((tz + Math.sin(a) * d) / 11 + 1) * 512;
+      g.fillStyle = ['#f7b6cc', '#fbd3e0', '#f29ab9', '#fde6ee'][i % 4];
+      g.beginPath();
+      g.ellipse(px, pz, 3 + Math.random() * 3, 2 + Math.random() * 2, Math.random() * 3, 0, Math.PI * 2);
+      g.fill();
+    }
+    const carpetTex = new THREE.CanvasTexture(carpet);
+    carpetTex.colorSpace = THREE.SRGBColorSpace;
+    put(new THREE.Mesh(new THREE.CircleGeometry(11, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ map: carpetTex, transparent: true, alphaTest: 0.4, roughness: 0.9 })), cx, 0.035, cz, false);
+
+    // Cherry trees: dark, gnarled trunks that fork into spreading branches under clouds of blossom.
+    const bark = new THREE.MeshStandardMaterial({ color: '#4a3530', roughness: 0.95 });
+    // Each crown is hundreds of small flower clusters (one instanced mesh per tree), over a darker
+    // core that fills the gaps - a fluffy, broken-up silhouette like real blossom, not a smooth ball.
+    const flowerGeo = new THREE.IcosahedronGeometry(1, 1);
+    const PINKS = ['#f7b9cd', '#fbd3e0', '#f2a3bf', '#fde4ec', '#ec93b3'].map((c) => new THREE.Color(c));
+    const core = new THREE.MeshStandardMaterial({ color: '#e7a9bd', roughness: 0.9 });
+    const crowns = [];
+    const m4 = new THREE.Matrix4();
+    const qn = new THREE.Quaternion();
+    const eul = new THREE.Euler();
+    TREES.forEach(([tx, tz, s], i) => {
+      const x = cx + tx;
+      const z = cz + tz;
+      const lean = new THREE.Vector3((Math.random() - 0.5) * 0.8, 0, (Math.random() - 0.5) * 0.8);
+      const trunkTop = new THREE.Vector3(lean.x, 2.6 * s, lean.z);
+      const trunk = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0, 0), new THREE.Vector3(lean.x * 0.2, 1.1 * s, lean.z * 0.5), trunkTop]), 12, 0.26 * s, 8);
+      put(new THREE.Mesh(trunk, bark), x, 0, z);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.3 * s, 0.5 * s, 0.5, 10), bark), x, 0.2, z);
+      const ends = [];
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + i;
+        const end = new THREE.Vector3(trunkTop.x + Math.cos(a) * 2.3 * s, trunkTop.y + (0.8 + (k % 2) * 0.8) * s, trunkTop.z + Math.sin(a) * 2.3 * s);
+        const mid = trunkTop.clone().lerp(end, 0.5).add(new THREE.Vector3(0, 0.5 * s, 0));
+        put(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([trunkTop, mid, end]), 8, 0.11 * s, 6), bark), x, 0, z);
+        ends.push(end);
+      }
+      const centres = [...ends, trunkTop.clone().add(new THREE.Vector3(0, 2.0 * s, 0))];
+      const PER = 60;
+      const mat = new THREE.MeshStandardMaterial({ roughness: 0.75, emissive: '#ffdbe7', emissiveIntensity: 0.07, transparent: true });
+      const flowers = new THREE.InstancedMesh(flowerGeo, mat, centres.length * PER);
+      const coreMat = core.clone();
+      coreMat.transparent = true;
+      let n = 0;
+      centres.forEach((e) => {
+        const R = 1.35 * s;
+        for (let k = 0; k < PER; k++) {
+          // Points biased toward the surface of a squashed sphere around the branch tip.
+          const u = Math.random() * Math.PI * 2;
+          const v = Math.acos(2 * Math.random() - 1);
+          const d = R * (0.55 + 0.45 * Math.cbrt(Math.random()));
+          const p = new THREE.Vector3(Math.sin(v) * Math.cos(u) * d * 1.15, Math.cos(v) * d * 0.72, Math.sin(v) * Math.sin(u) * d * 1.15);
+          const sc = (0.17 + Math.random() * 0.15) * s;
+          qn.setFromEuler(eul.set(Math.random() * 3, Math.random() * 3, Math.random() * 3));
+          flowers.setMatrixAt(n, m4.compose(new THREE.Vector3(x + e.x + p.x, e.y + p.y, z + e.z + p.z), qn, new THREE.Vector3(sc, sc * 0.85, sc)));
+          flowers.setColorAt(n++, PINKS[Math.floor(Math.random() * PINKS.length)]);
+        }
+        const fill = put(new THREE.Mesh(flowerGeo, coreMat), x + e.x, e.y, z + e.z);
+        fill.scale.set(R * 0.95, R * 0.6, R * 0.95);
+      });
+      flowers.castShadow = true;
+      flowers.receiveShadow = true;
+      scene.add(flowers);
+      crowns.push({ x, z, mats: [mat, coreMat] });
+      addCollider(x, z, 0.6);
+    });
+
+    // A stone lantern, stepping stones and a bench facing the sea.
+    const stone = mat('#a7a29a');
+    const LX = cx - 1.5;
+    const LZ = cz - 1;
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.65, 0.3, 8), stone), LX, 0.15, LZ);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 1.1, 8), stone), LX, 0.85, LZ);
+    const glow = new THREE.MeshStandardMaterial({ color: '#fff2cf', emissive: '#ffc46a', emissiveIntensity: 0.4 });
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.62), glow), LX, 1.65, LZ);
+    put(new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.5, 6), stone), LX, 2.15, LZ);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), stone), LX, 2.45, LZ);
+    addCollider(LX, LZ, 0.6);
+    for (let k = 0; k < 7; k++) {
+      const st = put(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.12, 9), mat('#bdb6aa')), cx - 9 + k * 1.5, 0.06, cz + Math.sin(k * 0.9) * 0.8, false);
+      st.rotation.y = k;
+    }
+    const wood = mat('#8a6440');
+    const bench = new THREE.Group();
+    bench.position.set(cx + 2.2, 0, cz + 0.5);
+    bench.rotation.y = Math.PI / 2; // looking out east, over the edge of the island
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.6), wood);
+    seat.position.y = 0.55;
+    const back = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.5, 0.08), wood);
+    back.position.set(0, 0.95, -0.28);
+    bench.add(seat, back);
+    [-0.95, 0.95].forEach((bx) => {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.55, 0.55), mat('#3b3b3f'));
+      leg.position.set(bx, 0.27, 0);
+      bench.add(leg);
+    });
+    bench.traverse((o) => o.isMesh && (o.castShadow = true));
+    scene.add(bench);
+    addCollider(bench.position.x, bench.position.z, 1.1);
+
+    // The petals themselves: hundreds, always drifting down through the garden.
+    const petals = createPetals({ count: 1100, box: 10, top: 7.5, size: 0.17, colors: ['#f7b6cc', '#fbd3e0', '#f29ab9'], shape: 'petal', fall: 0.7 });
+    petals.uniforms.uCenter.value.set(cx, cz);
+    scene.add(petals.mesh);
+    const toCam = new THREE.Vector2();
+    const toTree = new THREE.Vector2();
+    anim.push((dt, t, player, speed, wind) => {
+      // A crown standing between the camera and Byte turns see-through, so you never lose sight of Byte.
+      if (camera && Math.hypot(player.x - cx, player.z - cz) < 22) {
+        toCam.set(camera.position.x - player.x, camera.position.z - player.z);
+        const len = toCam.length();
+        toCam.normalize();
+        crowns.forEach((c) => {
+          toTree.set(c.x - player.x, c.z - player.z);
+          const along = toTree.dot(toCam);
+          const off = Math.abs(toTree.x * toCam.y - toTree.y * toCam.x);
+          const block = along > -1 && along < len && off < 3.4;
+          c.mats.forEach((m) => {
+            m.opacity += ((block ? 0.22 : 1) - m.opacity) * Math.min(1, dt * 5);
+            m.depthWrite = m.opacity > 0.95;
+          });
+        });
+      }
+      const near = Math.hypot(player.x - cx, player.z - cz) < 60;
+      petals.mesh.visible = near; // nothing to draw from the far side of the island
+      if (!near) return;
+      const pu = petals.uniforms;
+      pu.uTime.value = t;
+      pu.uWind.value.set(0.35 + wind * 0.6, 0.15 + Math.sin(t * 0.2) * 0.2);
+      const day = THREE.MathUtils.clamp(0.35 + light() * 0.32, 0.35, 1);
+      pu.uLight.value.setScalar(day);
+      glow.emissiveIntensity = day < 0.6 ? 1.6 : 0.4;
     });
   }
 

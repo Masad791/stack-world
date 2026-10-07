@@ -3,7 +3,7 @@ import { Bot } from './bot.js';
 import { textCanvas } from './world.js';
 
 // Speech bubble: word-wrapped text on a rounded card, drawn to a canvas.
-function bubbleTexture(text) {
+export function bubbleTexture(text) {
   const c = document.createElement('canvas');
   c.width = 640;
   c.height = 230;
@@ -36,10 +36,10 @@ function bubbleTexture(text) {
 }
 
 export class NPC {
-  // def: { name, home: [x, z], wander, shell, accent, scale?, speed?, roamAll? }
+  // def: { name, home: [x, z], wander, palette?, outfit?, flying?, scale?, speed?, roamAll? }
   constructor(def, scene) {
     this.def = def;
-    this.bot = new Bot({ shell: def.shell, accent: def.accent });
+    this.bot = new Bot({ palette: def.palette, outfit: def.outfit, flying: def.flying });
     this.pos = this.bot.group.position;
     this.pos.set(def.home[0], 0, def.home[1]);
     this.scale = def.scale ?? 1.2;
@@ -61,6 +61,10 @@ export class NPC {
     this.heading = Math.random() * Math.PI * 2;
     this.lead = null; // { pts: [{ x, z }...], onArrive }
     this.vel = new THREE.Vector3();
+    // Stuck detection: if the bot stops getting closer to its goal, it picks another one.
+    this.goalRef = null;
+    this.bestDist = Infinity;
+    this.stuckFor = 0;
   }
 
   say(text) {
@@ -83,7 +87,7 @@ export class NPC {
 
     if (this.lead) {
       const next = this.lead.pts[0];
-      if (Math.hypot(next.x - this.pos.x, next.z - this.pos.z) < 1.2) this.lead.pts.shift();
+      if (next && Math.hypot(next.x - this.pos.x, next.z - this.pos.z) < 1.2) this.lead.pts.shift();
       if (!this.lead.pts.length) {
         const { onArrive } = this.lead;
         this.lead = null;
@@ -116,6 +120,29 @@ export class NPC {
       }
     }
 
+    // A goal inside a building or behind a tree can never be reached: give up instead of walking
+    // into the wall forever.
+    if (goal) {
+      if (goal !== this.goalRef) {
+        this.goalRef = goal;
+        this.bestDist = Infinity;
+        this.stuckFor = 0;
+      }
+      const d = Math.hypot(goal.x - this.pos.x, goal.z - this.pos.z);
+      if (d < this.bestDist - 0.05) {
+        this.bestDist = d;
+        this.stuckFor = 0;
+      } else if ((this.stuckFor += dt) > 1.1) {
+        if (this.lead) this.lead.pts.shift(); // skip a waypoint that can't be reached
+        else {
+          this.target = null;
+          this.wait = 0.4 + Math.random();
+          this.heading += Math.PI * (0.6 + Math.random() * 0.8); // turn away from the obstacle
+        }
+        this.goalRef = null;
+        goal = null;
+      }
+    }
     const want = new THREE.Vector3();
     if (goal) {
       want.set(goal.x - this.pos.x, 0, goal.z - this.pos.z).normalize().multiplyScalar(speed);

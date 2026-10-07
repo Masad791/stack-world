@@ -1,27 +1,29 @@
 import * as THREE from 'three';
-import { ZONES, ARENA, GROVE, SECRETS } from './data.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { ZONES, ARENA, GROVE, SECRETS, FOREST, GATE } from './data.js';
 
 // Four moods the player can cycle through. Everything here is cross-faded, never switched.
 export const MOODS = {
   morning: {
     label: 'Morning', unlit: 1, mist: 0.38, pollen: 1, skyTop: '#5eb4ff', skyBottom: '#d9f1ff', sunGlow: '#fff6d8', fog: '#cfeaff', fogNear: 70, fogFar: 160,
     hemiSky: '#dff1ff', hemiGround: '#6f9e4f', hemi: 1.4, sun: '#fff4e0', sunI: 2.4, sunPos: [25, 40, 12],
-    sea: '#5cc8f0', grass: '#8fcf6a', lamps: 0, fireflies: 0, petals: 0, bloom: 0.25, exposure: 1,
+    sea: '#f3f7ff', grass: '#8fcf6a', lamps: 0, fireflies: 0, petals: 0, bloom: 0.25, exposure: 1,
   },
   golden: {
-    label: 'Golden hour', unlit: 0.9, mist: 0.28, pollen: 0.7, skyTop: '#ff9e7a', skyBottom: '#ffe2a8', sunGlow: '#ffd27a', fog: '#ffd9b0', fogNear: 55, fogFar: 140,
-    hemiSky: '#ffd6b0', hemiGround: '#7a6a3a', hemi: 1.1, sun: '#ffb46b', sunI: 2.8, sunPos: [40, 14, -10],
-    sea: '#f2a97a', grass: '#b8c95a', lamps: 1.2, fireflies: 0.2, petals: 0, bloom: 0.45, exposure: 1.05,
+    // A real sunset: dusky lavender overhead, burning orange at the horizon, peach clouds below.
+    label: 'Golden hour', unlit: 0.9, mist: 0.28, pollen: 0.7, skyTop: '#6f7bc4', skyBottom: '#ffb07c', sunGlow: '#ffc46b', fog: '#f4b896', fogNear: 60, fogFar: 150,
+    hemiSky: '#ffd0a8', hemiGround: '#6f5a3a', hemi: 1.1, sun: '#ffa45c', sunI: 2.8, sunPos: [40, 14, -10],
+    sea: '#ffc9a3', grass: '#a6c25c', lamps: 1.2, fireflies: 0.2, petals: 0, bloom: 0.45, exposure: 1.05,
   },
   night: {
     label: 'Starry night', unlit: 0.55, mist: 0.3, pollen: 0, skyTop: '#0b1640', skyBottom: '#2a3b78', sunGlow: '#9fb6ff', fog: '#1d2b5c', fogNear: 45, fogFar: 125,
     hemiSky: '#4a5fa8', hemiGround: '#141f30', hemi: 0.7, sun: '#b9c8ff', sunI: 0.65, sunPos: [-20, 35, 25],
-    sea: '#1d3a7a', grass: '#3f6f5a', lamps: 3.2, fireflies: 1, petals: 0, bloom: 1.05, exposure: 0.85,
+    sea: '#2f3f78', grass: '#3f6f5a', lamps: 3.2, fireflies: 1, petals: 0, bloom: 1.05, exposure: 0.85,
   },
   sakura: {
     label: 'Sakura', unlit: 1, mist: 0.3, pollen: 0.3, skyTop: '#9fc4ff', skyBottom: '#ffe3ee', sunGlow: '#ffffff', fog: '#ffe1ec', fogNear: 60, fogFar: 150,
     hemiSky: '#ffe6f0', hemiGround: '#7f9e6a', hemi: 1.35, sun: '#fff0f5', sunI: 2.2, sunPos: [20, 38, 20],
-    sea: '#8fd3f5', grass: '#9fd47a', lamps: 0, fireflies: 0, petals: 1, bloom: 0.3, exposure: 1,
+    sea: '#ffe6f0', grass: '#9fd47a', lamps: 0, fireflies: 0, petals: 1, bloom: 0.3, exposure: 1,
   },
 };
 // 'cycle' is the living day: the moods above blend through a 24 hour clock while the sun and moon cross the sky.
@@ -45,9 +47,11 @@ function openGround(x, z) {
   if (ZONES.some((zn) => Math.hypot(x - zn.x, z - zn.z) < zn.r + 0.5)) return false;
   if (Math.hypot(x - ARENA.x, z - ARENA.z) < ARENA.r + 1) return false;
   if (Math.hypot(x - GROVE.x, z - GROVE.z) < 5) return false;
+  if (Math.hypot(x - FOREST.x, z - FOREST.z) < FOREST.r + 1) return false; // ferns and moss there instead
   // No grass growing through the pond or across the shrine's stone pad.
   if (SECRETS.some((sc) => (sc.id === 'koi' || sc.id === 'shrine') && Math.hypot(x - sc.x, z - sc.z) < sc.r + 0.5)) return false;
-  return ![...ZONES, GROVE].some((zn) => {
+  if (Math.hypot(x - GATE.x, z - GATE.z) < 4) return false;
+  return ![...ZONES, GROVE, GATE].some((zn) => {
     const len2 = zn.x * zn.x + zn.z * zn.z || 1;
     const t = Math.max(0, Math.min(1, (x * zn.x + z * zn.z) / len2));
     return Math.hypot(x - zn.x * t, z - zn.z * t) < 3;
@@ -82,6 +86,11 @@ export function createNature(ctx) {
           vec3 col = mix(bottom, top, h);
           float s = max(dot(normalize(vDir), sunDir), 0.0);
           col += glow * (pow(s, 24.0) * 0.9 + pow(s, 4.0) * 0.18);
+          // The sun (or moon) itself: a soft-edged disk with a bright halo, and a warm band along
+          // the horizon when it is low.
+          col += glow * smoothstep(0.9975, 0.9988, s) * 1.6;
+          float low = 1.0 - smoothstep(0.05, 0.45, sunDir.y);
+          col += glow * low * 0.35 * pow(max(0.0, 1.0 - abs(vDir.y - 0.02) * 6.0), 2.0) * pow(s, 2.0);
           gl_FragColor = vec4(col, 1.0);
         }`,
     })
@@ -108,12 +117,14 @@ export function createNature(ctx) {
   for (let i = 0; i < 9; i++) {
     const g = new THREE.Group();
     const n = 4 + Math.floor(Math.random() * 4);
+    // One merged mesh per cloud (one draw call instead of one per puff).
+    const puffs = [];
     for (let k = 0; k < n; k++) {
-      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(3 + Math.random() * 3, 1), cloudMat);
-      puff.position.set((k - n / 2) * 3.4, Math.random() * 2, (Math.random() - 0.5) * 4);
-      puff.scale.y = 0.7;
-      g.add(puff);
+      const puff = new THREE.IcosahedronGeometry(3 + Math.random() * 3, 1);
+      puff.scale(1, 0.7, 1).translate((k - n / 2) * 3.4, Math.random() * 2, (Math.random() - 0.5) * 4);
+      puffs.push(puff);
     }
+    g.add(new THREE.Mesh(mergeGeometries(puffs), cloudMat));
     const a = (i / 9) * Math.PI * 2;
     const r = 50 + Math.random() * 60;
     g.userData = { a, r, y: 34 + Math.random() * 14, speed: 0.008 + Math.random() * 0.01 };
@@ -187,48 +198,148 @@ export function createNature(ctx) {
     }
   });
 
-  // ---------- Birds: a loose flock circling the island, flapping and banking ----------
-  // White gull-like birds read softly against grass and sky (very Ghibli), unlike black cut-outs.
-  const birdMat = new THREE.MeshStandardMaterial({ color: '#f7f4ee', side: THREE.DoubleSide, flatShading: true });
-  const wingGeo = new THREE.BufferGeometry();
-  wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.25, 0, 0, -0.25, 1.1, 0, -0.1], 3));
-  wingGeo.computeVertexNormals();
-  const birds = [];
-  for (let i = 0; i < 22; i++) {
-    const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.8, 5), birdMat);
-    body.rotation.x = Math.PI / 2;
-    const left = new THREE.Mesh(wingGeo, birdMat);
-    const right = new THREE.Mesh(wingGeo, birdMat);
-    right.scale.x = -1;
-    g.add(body, left, right);
-    g.scale.setScalar(0.95);
-    scene.add(g);
-    birds.push({
-      g, left, right,
-      r: 30 + (i % 3) * 7 + Math.random() * 6,
-      // Between the treetops and the camera, so they read as birds, not as shapes in the lens.
-      y: 11 + Math.random() * 4,
-      a: Math.random() * 0.8 + Math.floor(i / 8) * 2.1,
-      speed: 0.12 + Math.random() * 0.03,
-      phase: Math.random() * 6,
-      wobble: Math.random() * 6,
-    });
-  }
-  updates.push((dt, t) => birds.forEach((b) => {
-    b.a += b.speed * dt;
-    const r = b.r + Math.sin(t * 0.3 + b.wobble) * 6;
-    const x = Math.cos(b.a) * r;
-    const z = Math.sin(b.a) * r;
-    const y = b.y + Math.sin(t * 0.7 + b.wobble) * 1.2;
-    b.g.position.set(x, y, z);
-    b.g.rotation.set(0, -b.a, 0);
-    b.g.rotateZ(0.35); // bank into the turn
-    // Flap in bursts, then glide.
-    const flap = Math.sin(t * 9 + b.phase) * (0.55 + 0.45 * Math.max(0, Math.sin(t * 0.8 + b.phase)));
-    b.left.rotation.z = flap;
-    b.right.rotation.z = -flap;
+  // ---------- Birds: small flocks that fly by flapping, not by gliding in circles ----------
+  // Every bird is drawn with instancing (4 draw calls for the whole sky). The wingbeat is a real
+  // stroke: a fast downstroke with the wing spread, a slower upstroke with the outer wing folded in,
+  // and the body lifting a little on each beat. Flocks steer: a leader wanders, the rest follow in a
+  // loose V and bank into the turns.
+  const BIRDS = 24;
+  const featherMat = new THREE.MeshStandardMaterial({ color: '#f7f5f0', roughness: 0.8, side: THREE.DoubleSide, flatShading: true });
+  const tipMat = new THREE.MeshStandardMaterial({ color: '#3b4048', roughness: 0.8, side: THREE.DoubleSide, flatShading: true });
+  const beakMat = new THREE.MeshStandardMaterial({ color: '#f2b33d', roughness: 0.6 });
+  const wingPart = (span, root, tipChord, sweep) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, root / 2, 0, 0, -root / 2, span, 0, -tipChord / 2 - sweep, span, 0, tipChord / 2 - sweep], 3));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    g.computeVertexNormals();
+    return g;
+  };
+  // Body, head and tail baked into one geometry.
+  const bodyParts = [];
+  const addPart = (geo, m) => bodyParts.push(geo.applyMatrix4(m));
+  const BM = new THREE.Matrix4();
+  addPart(new THREE.SphereGeometry(0.22, 10, 8), BM.clone().makeScale(0.85, 0.8, 2.2));
+  addPart(new THREE.SphereGeometry(0.13, 8, 6), BM.clone().makeTranslation(0, 0.07, 0.48));
+  addPart(wingPart(0.3, 0.2, 0.34, -0.05).applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI / 2)), BM.clone().makeTranslation(0, 0.02, -0.42));
+  bodyParts.forEach((g) => g.deleteAttribute('uv'));
+  const bodyGeo = mergeGeometries(bodyParts.map((g) => (g.index ? g.toNonIndexed() : g)));
+  const beakGeo = new THREE.ConeGeometry(0.04, 0.16, 5).rotateX(Math.PI / 2).translate(0, 0.05, 0.64);
+  const inst = (geo, mat, n) => {
+    const m = new THREE.InstancedMesh(geo, mat, n);
+    m.frustumCulled = false;
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    scene.add(m);
+    return m;
+  };
+  const bodies = inst(bodyGeo, featherMat, BIRDS);
+  const beaks = inst(beakGeo, beakMat, BIRDS);
+  const inners = inst(wingPart(0.75, 0.55, 0.42, 0.1), featherMat, BIRDS * 2);
+  const outers = inst(wingPart(0.7, 0.42, 0.12, 0.28), tipMat, BIRDS * 2);
+  const birdCenter = new THREE.Vector3();
+  const flocks = [0, 1, 2, 3].map((f) => ({
+    pos: new THREE.Vector3(Math.cos(f * 1.6) * 40, 11 + f * 1.5, Math.sin(f * 1.6) * 40),
+    heading: f * 1.6 + Math.PI / 2,
+    turn: 0,
+    speed: 8.5 + f * 0.6,
+    seed: f * 13.7,
   }));
+  const birds = Array.from({ length: BIRDS }, (_, i) => {
+    const flock = flocks[i % 4];
+    const rank = Math.floor(i / 4); // 0 = leader
+    const side = rank % 2 ? 1 : -1;
+    return {
+      flock,
+      offset: new THREE.Vector3(side * Math.ceil(rank / 2) * 1.6, (Math.random() - 0.5) * 0.6, -Math.ceil(rank / 2) * 1.5),
+      pos: flock.pos.clone(),
+      vel: new THREE.Vector3(),
+      phase: Math.random(),
+      freq: 3.6 + Math.random() * 0.8, // beats per second
+      roll: 0,
+      glide: 0,
+    };
+  });
+  const bm = new THREE.Matrix4();
+  const wm = new THREE.Matrix4();
+  const tm = new THREE.Matrix4();
+  const bq = new THREE.Quaternion();
+  const be = new THREE.Euler(0, 0, 0, 'YXZ');
+  const bOne = new THREE.Vector3(1, 1, 1);
+  const bMirror = new THREE.Vector3(-1, 1, 1);
+  const bt = new THREE.Vector3();
+  const bgoal = new THREE.Vector3();
+  let birdsVisible = true;
+  updates.push((dt, t) => {
+    if (!birdsVisible) return;
+    // Leaders wander smoothly, staying within a ring around the island and a band of heights.
+    flocks.forEach((f) => {
+      const away = Math.hypot(f.pos.x - birdCenter.x, f.pos.z - birdCenter.z);
+      const home = Math.atan2(birdCenter.x - f.pos.x, birdCenter.z - f.pos.z);
+      let want = Math.sin(t * 0.13 + f.seed) * 0.35 + Math.sin(t * 0.31 + f.seed * 2) * 0.2;
+      if (away > 55) want += Math.atan2(Math.sin(home - f.heading), Math.cos(home - f.heading)) * 0.6;
+      if (away < 22) want -= Math.atan2(Math.sin(home - f.heading), Math.cos(home - f.heading)) * 0.4;
+      f.turn += (want - f.turn) * Math.min(1, dt * 0.8);
+      f.heading += f.turn * dt;
+      f.pos.x += Math.sin(f.heading) * f.speed * dt;
+      f.pos.z += Math.cos(f.heading) * f.speed * dt;
+      f.pos.y = birdCenter.y + 11 + Math.sin(t * 0.21 + f.seed) * 2.5 + f.seed * 0.08;
+    });
+    birds.forEach((b, i) => {
+      const f = b.flock;
+      // Follow the leader's slot in the V, with a little lag and drift.
+      bgoal.copy(b.offset).applyAxisAngle(THREE.Object3D.DEFAULT_UP, f.heading).add(f.pos);
+      bgoal.y += Math.sin(t * 0.9 + i) * 0.3;
+      bt.subVectors(bgoal, b.pos);
+      b.vel.lerp(bt.multiplyScalar(2.2), Math.min(1, dt * 2));
+      if (b.vel.lengthSq() < 4) b.vel.set(Math.sin(f.heading), 0, Math.cos(f.heading)).multiplyScalar(f.speed);
+      b.pos.addScaledVector(b.vel, dt);
+      // Orientation from velocity: yaw, a little pitch, and a bank that follows the flock's turn.
+      const yaw = Math.atan2(b.vel.x, b.vel.z);
+      const pitch = -Math.atan2(b.vel.y, Math.hypot(b.vel.x, b.vel.z)) * 0.6;
+      b.roll += (-f.turn * 0.55 - b.roll) * Math.min(1, dt * 3);
+      // Mostly flapping; now and then a short glide with wings held a little up.
+      if (b.glide > 0) b.glide -= dt;
+      else if (Math.random() < dt * 0.06) b.glide = 0.5 + Math.random() * 0.6;
+      const gliding = b.glide > 0;
+      if (!gliding) b.phase = (b.phase + dt * b.freq) % 1;
+      const p = b.phase;
+      // Downstroke (first 45% of the beat) is fast and powerful; the upstroke recovers more slowly.
+      const down = p < 0.45;
+      const k = down ? p / 0.45 : (p - 0.45) / 0.55;
+      const ease = 0.5 - 0.5 * Math.cos(k * Math.PI);
+      const inner = gliding ? 0.12 : down ? 0.85 - ease * 1.45 : -0.6 + ease * 1.45;
+      const outer = gliding ? -0.05 : down ? 0.15 * ease : -0.95 * Math.sin(k * Math.PI); // fold on the way up
+      const lift = gliding ? 0 : Math.sin(p * Math.PI * 2) * 0.07;
+      be.set(pitch, yaw, b.roll);
+      bq.setFromEuler(be);
+      bm.compose(bt.set(b.pos.x, b.pos.y + lift, b.pos.z), bq, bOne);
+      bm.scale(bt.set(1.15, 1.15, 1.15));
+      bodies.setMatrixAt(i, bm);
+      beaks.setMatrixAt(i, bm);
+      [1, -1].forEach((side, w) => {
+        // Shoulder, then the wing's beat angle; the left wing is the right one mirrored.
+        wm.copy(bm).multiply(tm.makeTranslation(0.08 * side, 0.05, 0.05)).multiply(tm.makeRotationZ(inner * side));
+        if (side < 0) wm.scale(bMirror);
+        inners.setMatrixAt(i * 2 + w, wm);
+        wm.multiply(tm.makeTranslation(0.74, 0, 0)).multiply(tm.makeRotationZ(outer));
+        outers.setMatrixAt(i * 2 + w, wm);
+      });
+    });
+    [bodies, beaks, inners, outers].forEach((m) => (m.instanceMatrix.needsUpdate = true));
+  });
+  // What the weather and the travel system need: hide the flock, or move it to another island.
+  const birdHandle = {
+    set visible(v) {
+      birdsVisible = v;
+      [bodies, beaks, inners, outers].forEach((m) => (m.visible = v));
+    },
+    setCenter(x, y, z) {
+      const dx = x - birdCenter.x;
+      const dz = z - birdCenter.z;
+      birdCenter.set(x, y, z);
+      flocks.forEach((f) => f.pos.add(bt.set(dx, 0, dz)));
+      birds.forEach((b) => b.pos.add(bt.set(dx, 0, dz)));
+    },
+  };
 
   // ---------- Air: fireflies, petals, dandelion fluff and mist ----------
   // Every particle has a fixed home in the world plus a shared wind offset. We only *display* them in a
@@ -298,6 +409,7 @@ export function createNature(ctx) {
 
   // ---------- Moods ----------
   let cycling = true;
+  let timeScale = 1; // the bench speeds time up so you can watch a sunset
   let hours = 8.5; // the island wakes up mid-morning
   const dayTarget = moodState(MOODS.morning);
   dayTarget.sunPos = [0, 0, 0];
@@ -379,9 +491,15 @@ export function createNature(ctx) {
       return windState.speed;
     },
     // What the weather needs to grey the sky, flatten the grass and drift with the wind.
-    handles: { skyUniforms, cloudMat, grassMat, stars, flies, pollen, windState, birds },
+    handles: { skyUniforms, cloudMat, grassMat, stars, flies, pollen, windState, birds: birdHandle, mistMat },
     get hours() {
       return hours;
+    },
+    get isNight() {
+      return cycling ? hours < 5.6 || hours >= 19.4 : target === MOODS.night;
+    },
+    setTimeScale(k) {
+      timeScale = k;
     },
     get clockLabel() {
       const h = Math.floor(hours);
@@ -394,7 +512,7 @@ export function createNature(ctx) {
     },
     update(dt, t, player) {
       if (cycling) {
-        hours = (hours + (dt * 24) / DAY_SECONDS) % 24;
+        hours = (hours + (dt * 24 * timeScale) / DAY_SECONDS) % 24;
         blendDay();
       }
       // Logo textures load asynchronously, so keep re-collecting for the first few seconds.
